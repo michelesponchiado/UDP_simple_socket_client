@@ -54,24 +54,28 @@ int main(int argc, char *argv[])
     {
     	srand(time(NULL));
     	unsigned int i;
-    	unsigned int nloop = 1+ (rand()%16);
+    	unsigned int nloop = 1+ (rand()%64);
 
     	for (i = 0; i < nloop; i++)
     	{
     	    snprintf(buffer,sizeof(buffer), "hello how are you?");
     	    printf("Sending the message %i of %i: %s\n",i+1,nloop,buffer);
     	    n = write(sockfd,buffer,strlen(buffer));
-    	    if (n < 0)
-    	         error("ERROR writing to socket");
+    	    if (n <= 0)
+    	    {
+				error("ERROR writing to socket (socket closed?)\n");
+    	    }
     	    bzero(buffer,256);
     	    n = read(sockfd,buffer,255);
-    	    if (n < 0)
-    	         error("ERROR reading from socket");
+    	    if (n <= 0)
+    	    {
+				error("ERROR reading from socket (socket closed?)\n");
+    	    }
     	    printf("Message received: %s\n",buffer);
     	    if (i+1 < nloop)
     	    {
         	    // sleep random time
-    	    	unsigned int us_sleep = 200000 + (rand()%1)*1000000;
+    	    	unsigned int us_sleep = 200000 + (rand()%16)*100000;
     	    	printf("sleeping for %i us\n",us_sleep);
         	    usleep(us_sleep);
     	    }
