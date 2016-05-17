@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
     				{
     					case enum_ASAC_ZigBee_interface_command_outside_send_message_reply_retcode_OK:
     					{
-    	    				printf("The message has been sent OK\n");
+    	    				printf("The message has been sent OK, id is %u\n", p_reply->reply.outside_send_message.id);
     						break;
     					}
     					default:
