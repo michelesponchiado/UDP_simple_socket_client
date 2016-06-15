@@ -142,9 +142,89 @@ int main(int argc, char *argv[])
 #endif
 
     unsigned int cnt_msg_num = 0;
+
+	{
+    	typedef struct _type_ep_cl
+    	{
+    		unsigned int ep,cl;
+    	}type_ep_cl;
+    	type_ep_cl ep_cl[10] =
+    	{
+    			{.ep = 1, .cl = 10},
+    			{.ep = 2, .cl = 20},
+    			{.ep = 3, .cl = 30},
+    			{.ep = 4, .cl = 40},
+    			{.ep = 5, .cl = 50},
+    			{.ep = 1, .cl = 100},
+    			{.ep = 2, .cl = 200},
+    			{.ep = 3, .cl = 300},
+    			{.ep = 4, .cl = 400},
+    			{.ep = 0, .cl = 500},
+    	};
+    	unsigned int idx_loop_tx;
+        for (idx_loop_tx = 0; idx_loop_tx < sizeof(ep_cl)/sizeof(ep_cl[0]); idx_loop_tx++)
+    	{
+    		type_ASAC_Zigbee_interface_request zmessage_tx = {0};
+    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_input_cluster_register_req;
+    		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),input_cluster_register);
+    		type_ASAC_ZigBee_interface_network_input_cluster_register_req * p_ic_req = &zmessage_tx.req.input_cluster_register;
+    		p_ic_req->endpoint = ep_cl[idx_loop_tx].ep;
+    		p_ic_req->input_cluster_id = ep_cl[idx_loop_tx].cl;
+
+    		type_struct_ASACSOCKET_msg amessage_tx;
+    		memset(&amessage_tx,0,sizeof(amessage_tx));
+
+    		unsigned int amessage_tx_size = 0;
+    		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+    		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+    		{
+				unsigned int slen=sizeof(serv_addr);
+				//send the message
+				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+				{
+					printf("error on sendto()");
+				}
+				else
+				{
+					printf("endp/cluster registered OK: %u/%u\n",(unsigned int)p_ic_req->endpoint,(unsigned int)p_ic_req->input_cluster_id);
+					cnt_msg_num++;
+				}
+    		}
+    	}
+        for (idx_loop_tx = 0; idx_loop_tx < sizeof(ep_cl)/sizeof(ep_cl[0]); idx_loop_tx++)
+    	{
+    		type_ASAC_Zigbee_interface_request zmessage_tx = {0};
+    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_input_cluster_unregister_req;
+    		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),input_cluster_unregister);
+    		type_ASAC_ZigBee_interface_network_input_cluster_unregister_req * p_ic_req = &zmessage_tx.req.input_cluster_unregister;
+    		p_ic_req->endpoint = ep_cl[idx_loop_tx].ep;
+    		p_ic_req->input_cluster_id = ep_cl[idx_loop_tx].cl;
+
+    		type_struct_ASACSOCKET_msg amessage_tx;
+    		memset(&amessage_tx,0,sizeof(amessage_tx));
+
+    		unsigned int amessage_tx_size = 0;
+    		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+    		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+    		{
+				unsigned int slen=sizeof(serv_addr);
+				//send the message
+				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+				{
+					printf("error on sendto()");
+				}
+				else
+				{
+					printf("endp/cluster unregistered OK: %u/%u\n",(unsigned int)p_ic_req->endpoint,(unsigned int)p_ic_req->input_cluster_id);
+					cnt_msg_num++;
+				}
+    		}
+    	}
+	}
+
     while(1)
     {
-    	char message[256];
+    	//char message[256];
 
     	{
         	unsigned int idx_loop_tx;
@@ -212,9 +292,21 @@ int main(int argc, char *argv[])
                 				printf("echo rx: %s\n", p_echo_reply->message_to_echo);
                 				break;
                 			}
+                			case enum_ASAC_ZigBee_interface_command_network_input_cluster_register_req:
+                			{
+                				type_ASAC_ZigBee_interface_network_input_cluster_register_reply * p_icr_reply = &pzmessage_rx->reply.input_cluster_register;
+                				printf("endp/cluster register return code %u: %u/%u\n", (unsigned int)p_icr_reply->retcode, (unsigned int)p_icr_reply->endpoint, (unsigned int)p_icr_reply->input_cluster_id);
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_network_input_cluster_unregister_req:
+                			{
+                				type_ASAC_ZigBee_interface_network_input_cluster_register_reply * p_icr_reply = &pzmessage_rx->reply.input_cluster_register;
+                				printf("endp/cluster unregister return code %u: %u/%u\n", (unsigned int)p_icr_reply->retcode, (unsigned int)p_icr_reply->endpoint, (unsigned int)p_icr_reply->input_cluster_id);
+                				break;
+                			}
                 			default:
                 			{
-                				printf("unknown message code received: %u\n", pzmessage_rx->code);
+                				printf("unknown message code received: %X\n", pzmessage_rx->code);
                 			}
                 		}
                 	}
