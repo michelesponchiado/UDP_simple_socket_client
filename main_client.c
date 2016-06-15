@@ -26,6 +26,8 @@
 #include <poll.h>
 
 #include "ASAC_ZigBee_network_commands.h"
+#include "ASACSOCKET_check.h"
+
 // the port number we use
 #define def_port_number 3117
 
@@ -146,20 +148,35 @@ int main(int argc, char *argv[])
 
     	{
         	unsigned int idx_loop_tx;
-        	for (idx_loop_tx = 0; idx_loop_tx < 1+(rand()%8); idx_loop_tx++)
+        	//for (idx_loop_tx = 0; idx_loop_tx < 1+(rand()%8); idx_loop_tx++)
+            for (idx_loop_tx = 0; idx_loop_tx < 1; idx_loop_tx++)
         	{
-				prepare_formatted_message(message,sizeof(message), cnt_msg_num);
-				unsigned int slen=sizeof(serv_addr);
-				//send the message
-				if (sendto(sockfd, message, strlen(message)+1 , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
-				{
-					printf("error on sendto()");
-				}
-				else
-				{
-					printf("message sent OK: %s\n",message);
-					cnt_msg_num++;
-				}
+        		static unsigned int ui_cnt_echo;
+        		type_ASAC_Zigbee_interface_request zmessage_tx = {0};
+        		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_echo_req;
+        		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),echo);
+        		type_ASAC_ZigBee_interface_network_echo_req * p_echo_req = &zmessage_tx.req.echo;
+        		snprintf((char*)p_echo_req->message_to_echo,sizeof(p_echo_req->message_to_echo),"hello %u", ++ui_cnt_echo);
+
+        		type_struct_ASACSOCKET_msg amessage_tx;
+        		memset(&amessage_tx,0,sizeof(amessage_tx));
+
+        		unsigned int amessage_tx_size = 0;
+        		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+        		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+        		{
+    				unsigned int slen=sizeof(serv_addr);
+    				//send the message
+    				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+    				{
+    					printf("error on sendto()");
+    				}
+    				else
+    				{
+    					printf("message sent OK: %s\n",p_echo_req->message_to_echo);
+    					cnt_msg_num++;
+    				}
+        		}
         	}
     	}
         {
@@ -171,26 +188,37 @@ int main(int argc, char *argv[])
         	{
         		// 10 ms pause
             	usleep(def_pause_base_time_us);
-                //receive a reply and print it
-                //clear the buffer by filling null, it might have previously received data
-                memset(message,'\0', sizeof(message));
+        		type_struct_ASACSOCKET_msg amessage_rx;
+        		memset(&amessage_rx,0,sizeof(amessage_rx));
+
                 unsigned int slen=sizeof(serv_addr);
+                int n_received_bytes = 0;
                 //try to receive some data, this is a blocking call
-                if (recvfrom(sockfd, message, sizeof(message), 0, (struct sockaddr *) &serv_addr, &slen) == -1)
+                n_received_bytes = recvfrom(sockfd, (char *)&amessage_rx, sizeof(amessage_rx), 0, (struct sockaddr *) &serv_addr, &slen) ;
+                if (n_received_bytes == -1)
                 {
                 	//printf("error on recvfrom()");
                 }
                 else
                 {
-                	if (is_OK_check_formatted_message(message, sizeof(message)))
+                	if (check_ASACSOCKET_formatted_message((char *)&amessage_rx, n_received_bytes) == enum_check_ASACSOCKET_formatted_message_OK)
                 	{
-                    	printf("OK message received: %s\n",message);
+                		type_ASAC_Zigbee_interface_command_reply *pzmessage_rx = (type_ASAC_Zigbee_interface_command_reply *)&(amessage_rx.body);
+                		switch(pzmessage_rx->code)
+                		{
+                			case enum_ASAC_ZigBee_interface_command_network_echo_req:
+                			{
+                				type_ASAC_ZigBee_interface_network_echo_reply * p_echo_reply = &pzmessage_rx->reply.echo;
+                				printf("echo rx: %s\n", p_echo_reply->message_to_echo);
+                				break;
+                			}
+                			default:
+                			{
+                				printf("unknown message code received: %u\n", pzmessage_rx->code);
+                			}
+                		}
                 	}
-                	else
-                	{
-                    	printf("ERR message received: %s\n",message);
-                    	exit(0);
-                	}
+
                 }
         	}
         }
