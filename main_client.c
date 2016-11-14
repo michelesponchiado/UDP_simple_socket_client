@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <time.h>
 #include <fcntl.h>
 #include <string.h>
@@ -148,18 +149,9 @@ int main(int argc, char *argv[])
     	{
     		unsigned int ep,cl;
     	}type_ep_cl;
-    	type_ep_cl ep_cl[10] =
+    	type_ep_cl ep_cl[1] =
     	{
-    			{.ep = 1, .cl = 10},
-    			{.ep = 2, .cl = 20},
-    			{.ep = 3, .cl = 30},
-    			{.ep = 4, .cl = 40},
-    			{.ep = 5, .cl = 50},
-    			{.ep = 1, .cl = 100},
-    			{.ep = 2, .cl = 200},
-    			{.ep = 3, .cl = 300},
-    			{.ep = 4, .cl = 400},
-    			{.ep = 0, .cl = 500},
+    			{.ep = 1, .cl = 1},
     	};
     	unsigned int idx_loop_tx;
         for (idx_loop_tx = 0; idx_loop_tx < sizeof(ep_cl)/sizeof(ep_cl[0]); idx_loop_tx++)
@@ -191,6 +183,7 @@ int main(int argc, char *argv[])
 				}
     		}
     	}
+#if 0
         for (idx_loop_tx = 0; idx_loop_tx < sizeof(ep_cl)/sizeof(ep_cl[0]); idx_loop_tx++)
     	{
     		type_ASAC_Zigbee_interface_request zmessage_tx = {0};
@@ -220,12 +213,60 @@ int main(int argc, char *argv[])
 				}
     		}
     	}
+#endif
 	}
 
+	unsigned int idx_global_loop = 0;
     while(1)
     {
     	//char message[256];
+    	++idx_global_loop;
+//#define def_send_outside_messages
+#ifdef def_send_outside_messages
+    	if ((idx_global_loop & 1) == 0)
+    	{
+    		static uint32_t idx_msg;
+    		static char * the_messages[]=
+    		{
+    				"hello","how are you?","Me, I am fine!"
+    		};
+    		if (++idx_msg >= sizeof(the_messages) / sizeof(the_messages[0]))
+    		{
+    			idx_msg = 0;
+    		}
+    		char *text_to_send = the_messages[idx_msg];
+    		type_ASAC_Zigbee_interface_request zmessage_tx = {0};
+    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_outside_send_message;
+    		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),outside_send_message);
+    		type_ASAC_ZigBee_interface_command_outside_send_message_req * p_req = &zmessage_tx.req.outside_send_message;
+    		int len = snprintf((char*)p_req->message,sizeof(p_req->message),"%s", text_to_send);
+    		if (len >= 0)
+    		{
+        		p_req->message_length = len;
+        		type_struct_ASACSOCKET_msg amessage_tx;
+        		memset(&amessage_tx,0,sizeof(amessage_tx));
 
+        		unsigned int amessage_tx_size = 0;
+        		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+        		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+        		{
+    				unsigned int slen=sizeof(serv_addr);
+    				//send the message
+    				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+    				{
+    					printf("error on sendto()");
+    				}
+    				else
+    				{
+    					printf("message sent OK: %*.*s\n", len, len, p_req->message);
+    				}
+        		}
+    		}
+
+
+    	}
+    	else
+#endif
     	{
         	unsigned int idx_loop_tx;
         	//for (idx_loop_tx = 0; idx_loop_tx < 1+(rand()%8); idx_loop_tx++)
@@ -302,6 +343,28 @@ int main(int argc, char *argv[])
                 			{
                 				type_ASAC_ZigBee_interface_network_input_cluster_register_reply * p_icr_reply = &pzmessage_rx->reply.input_cluster_register;
                 				printf("endp/cluster unregister return code %u: %u/%u\n", (unsigned int)p_icr_reply->retcode, (unsigned int)p_icr_reply->endpoint, (unsigned int)p_icr_reply->input_cluster_id);
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_outside_received_message:
+                			{
+                				type_ASAC_ZigBee_interface_command_received_message_callback * p = &pzmessage_rx->reply.received_message_callback;
+                				printf("receive message callback:\n");
+                				{
+                					unsigned int i;
+                					for (i =0; i < p->message_length; i++)
+                					{
+                						char c = p->message[i];
+                						if (isprint(c))
+                						{
+                							printf("%c",c);
+                						}
+                						else
+                						{
+                							printf("0x%X",(unsigned int)(c));
+                						}
+                					}
+                					printf("\n");
+                				}
                 				break;
                 			}
                 			default:
