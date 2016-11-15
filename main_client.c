@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
 	}type_ep_cl;
 	type_ep_cl ep_cl[1] =
 	{
-			{.ep = 1, .cl = 6},
+			{.ep = 2, .cl = 4},
 	};
 
 	{
