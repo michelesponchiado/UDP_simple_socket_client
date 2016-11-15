@@ -23,7 +23,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-
+#include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
 #include <pthread.h>
@@ -94,17 +94,19 @@ unsigned int is_OK_check_formatted_message(char *buffer, unsigned int buffer_siz
 	return 1;
 }
 
-
+int sockfd;
 struct termios initial_settings,
                new_settings;
 
 static void my_at_exit(void)
 {
 	tcsetattr(0, TCSANOW, &initial_settings);
+	close(sockfd);
 }
 
 int main(int argc, char *argv[])
 {
+	int already_print_socket = 0;
 	tcgetattr(0,&initial_settings);
 
 	  new_settings = initial_settings;
@@ -117,7 +119,7 @@ int main(int argc, char *argv[])
 	  tcsetattr(0, TCSANOW, &new_settings);
 	atexit(my_at_exit);
 
-    int sockfd, portno;
+    int portno;
     portno = def_port_number;
     if ((argc >= 2) && (strncasecmp(argv[1],"udpport=",8)==0))
     {
@@ -156,6 +158,10 @@ int main(int argc, char *argv[])
     serv_addr.sin_port = htons(portno);
     inet_aton("192.168.0.208", &serv_addr.sin_addr);
 #endif
+
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
+
+
 //#define def_local_check
 #ifdef def_local_check
     {
@@ -268,13 +274,18 @@ int main(int argc, char *argv[])
     		static uint32_t idx_msg;
     		static char * the_messages[]=
     		{
-    				"hello","how are you?","Me, I am fine!"
+    				"1: hello","2: how are you?","3: I hope all works well!"
     		};
     		if (++idx_msg >= sizeof(the_messages) / sizeof(the_messages[0]))
     		{
     			idx_msg = 0;
     		}
     		char *text_to_send = the_messages[idx_msg];
+			printf("\n\n");
+			printf("**********************************\n");
+    		printf("%s: sending message: <%s>\n", __func__, text_to_send);
+			printf("**********************************\n");
+			printf("\n");
     		type_ASAC_Zigbee_interface_request zmessage_tx = {0};
     		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_outside_send_message;
     		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),outside_send_message);
@@ -306,11 +317,11 @@ int main(int argc, char *argv[])
     				//send the message
     				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
     				{
-    					printf("error on sendto()");
+    					printf("%s: error on sendto()", __func__);
     				}
     				else
     				{
-    					printf("message sent OK: %*.*s\n", len, len, p_req->message);
+    					printf("%s: TX message OK: %*.*s\n",__func__,len, len, p_req->message);
     				}
         		}
     		}
@@ -343,11 +354,11 @@ int main(int argc, char *argv[])
     				//send the message
     				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
     				{
-    					printf("error on sendto()");
+    					printf("%s: error on sendto()", __func__);
     				}
     				else
     				{
-    					printf("message sent OK: %s\n",p_echo_req->message_to_echo);
+    					printf("%s message sent OK: %s\n",__func__, p_echo_req->message_to_echo);
     					cnt_msg_num++;
     				}
         		}
@@ -369,6 +380,12 @@ int main(int argc, char *argv[])
                 int n_received_bytes = 0;
                 //try to receive some data, this is a blocking call
                 n_received_bytes = recvfrom(sockfd, (char *)&amessage_rx, sizeof(amessage_rx), 0, (struct sockaddr *) &serv_addr, &slen) ;
+                if (already_print_socket == 0)
+                {
+                	already_print_socket = 1;
+        			char *ip = inet_ntoa(serv_addr.sin_addr);
+        			printf("%s: socket ip:%s, port=%u\n", __func__,ip, (unsigned int)serv_addr.sin_port);
+                }
                 if (n_received_bytes == -1)
                 {
                 	//printf("error on recvfrom()");
@@ -383,31 +400,31 @@ int main(int argc, char *argv[])
                 			case enum_ASAC_ZigBee_interface_command_network_echo_req:
                 			{
                 				type_ASAC_ZigBee_interface_network_echo_reply * p_echo_reply = &pzmessage_rx->reply.echo;
-                				printf("echo rx: %s\n", p_echo_reply->message_to_echo);
+                				printf("\t%s: RX echo: %s\n", __func__,p_echo_reply->message_to_echo);
                 				break;
                 			}
                 			case enum_ASAC_ZigBee_interface_command_network_input_cluster_register_req:
                 			{
                 				type_ASAC_ZigBee_interface_network_input_cluster_register_reply * p_icr_reply = &pzmessage_rx->reply.input_cluster_register;
-                				printf("endp/cluster register return code %u: %u/%u\n", (unsigned int)p_icr_reply->retcode, (unsigned int)p_icr_reply->endpoint, (unsigned int)p_icr_reply->input_cluster_id);
+                				printf("\t%s: RX endp/cluster register return code %u: %u/%u\n", __func__,(unsigned int)p_icr_reply->retcode, (unsigned int)p_icr_reply->endpoint, (unsigned int)p_icr_reply->input_cluster_id);
                 				break;
                 			}
                 			case enum_ASAC_ZigBee_interface_command_network_input_cluster_unregister_req:
                 			{
                 				type_ASAC_ZigBee_interface_network_input_cluster_register_reply * p_icr_reply = &pzmessage_rx->reply.input_cluster_register;
-                				printf("endp/cluster unregister return code %u: %u/%u\n", (unsigned int)p_icr_reply->retcode, (unsigned int)p_icr_reply->endpoint, (unsigned int)p_icr_reply->input_cluster_id);
+                				printf("\t%s: RX endp/cluster unregister return code %u: %u/%u\n", __func__,(unsigned int)p_icr_reply->retcode, (unsigned int)p_icr_reply->endpoint, (unsigned int)p_icr_reply->input_cluster_id);
                 				break;
                 			}
                 			case enum_ASAC_ZigBee_interface_command_outside_send_message:
                 			{
                 				type_ASAC_ZigBee_interface_command_outside_send_message_reply * p_reply = &pzmessage_rx->reply.outside_send_message;
-                				printf("send message reply %u: %s\n",(unsigned int)p_reply->retcode,  (p_reply->retcode == enum_ASAC_ZigBee_interface_command_outside_send_message_reply_retcode_OK) ? "OK":"ERROR");
+                				printf("\t%s: RX send_message reply %u: %s\n",__func__, (unsigned int)p_reply->retcode,  (p_reply->retcode == enum_ASAC_ZigBee_interface_command_outside_send_message_reply_retcode_OK) ? "OK":"ERROR");
                 				break;
                 			}
                 			case enum_ASAC_ZigBee_interface_command_outside_received_message:
                 			{
                 				type_ASAC_ZigBee_interface_command_received_message_callback * p = &pzmessage_rx->reply.received_message_callback;
-                				printf("receive message callback:\n");
+                				printf("\n******************************\n\t%s: RX message callback: <", __func__);
                 				{
                 					unsigned int i;
                 					for (i =0; i < p->message_length; i++)
@@ -422,13 +439,13 @@ int main(int argc, char *argv[])
                 							printf("0x%X",(unsigned int)(c));
                 						}
                 					}
-                					printf("\n");
+                					printf(">\n\n");
                 				}
                 				break;
                 			}
                 			default:
                 			{
-                				printf("unknown message code received: %X\n", pzmessage_rx->code);
+                				printf("%s: RX unknown message code: %X\n", __func__, pzmessage_rx->code);
                 			}
                 		}
                 	}
