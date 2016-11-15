@@ -9,6 +9,9 @@
 	#define _GNU_SOURCE
 #endif
 #include <stdio.h>
+
+#include <termios.h>            //termios, TCSANOW, ECHO, ICANON
+#include <unistd.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
@@ -30,7 +33,13 @@
 #include "ASACSOCKET_check.h"
 
 // the port number we use
+#define def_use_secondary_port
+#ifdef def_use_secondary_port
+#define def_port_number 3118
+#else
 #define def_port_number 3117
+#endif
+
 
 void error(const char *msg)
 {
@@ -86,12 +95,38 @@ unsigned int is_OK_check_formatted_message(char *buffer, unsigned int buffer_siz
 }
 
 
+struct termios initial_settings,
+               new_settings;
+
+static void my_at_exit(void)
+{
+	tcsetattr(0, TCSANOW, &initial_settings);
+}
+
 int main(int argc, char *argv[])
 {
+	tcgetattr(0,&initial_settings);
+
+	  new_settings = initial_settings;
+	  new_settings.c_lflag &= ~ICANON;
+	  new_settings.c_lflag &= ~ECHO;
+	  new_settings.c_lflag &= ~ISIG;
+	  new_settings.c_cc[VMIN] = 0;
+	  new_settings.c_cc[VTIME] = 0;
+
+	  tcsetattr(0, TCSANOW, &new_settings);
+	atexit(my_at_exit);
+
     int sockfd, portno;
-
-
     portno = def_port_number;
+    if ((argc >= 2) && (strncasecmp(argv[1],"udpport=",8)==0))
+    {
+    	portno = atoi(&argv[1][8]);
+    	printf("Forcing port %u\n",(unsigned int )portno);
+    }
+	printf("Using port %u\n",(unsigned int )portno);
+
+
     sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (sockfd < 0)
         error("ERROR opening socket");
@@ -143,16 +178,16 @@ int main(int argc, char *argv[])
 #endif
 
     unsigned int cnt_msg_num = 0;
+	typedef struct _type_ep_cl
+	{
+		unsigned int ep,cl;
+	}type_ep_cl;
+	type_ep_cl ep_cl[1] =
+	{
+			{.ep = 1, .cl = 6},
+	};
 
 	{
-    	typedef struct _type_ep_cl
-    	{
-    		unsigned int ep,cl;
-    	}type_ep_cl;
-    	type_ep_cl ep_cl[1] =
-    	{
-    			{.ep = 1, .cl = 1},
-    	};
     	unsigned int idx_loop_tx;
         for (idx_loop_tx = 0; idx_loop_tx < sizeof(ep_cl)/sizeof(ep_cl[0]); idx_loop_tx++)
     	{
@@ -219,11 +254,16 @@ int main(int argc, char *argv[])
 	unsigned int idx_global_loop = 0;
     while(1)
     {
+    	int c_from_kbd = getchar();
+    	if (c_from_kbd == 'q' || c_from_kbd == 'Q')
+    	{
+    		break;
+    	}
     	//char message[256];
     	++idx_global_loop;
-//#define def_send_outside_messages
+#define def_send_outside_messages
 #ifdef def_send_outside_messages
-    	if ((idx_global_loop & 1) == 0)
+    	if ((c_from_kbd == 'm') || (c_from_kbd == 'M'))
     	{
     		static uint32_t idx_msg;
     		static char * the_messages[]=
@@ -240,6 +280,18 @@ int main(int argc, char *argv[])
     		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),outside_send_message);
     		type_ASAC_ZigBee_interface_command_outside_send_message_req * p_req = &zmessage_tx.req.outside_send_message;
     		int len = snprintf((char*)p_req->message,sizeof(p_req->message),"%s", text_to_send);
+    		type_ASAC_ZigBee_dst_id *pdst = &p_req->dst_id;
+    		// end-device IEEE address
+    		pdst->IEEE_destination_address = 0x124B0006E30188;
+    		if (portno == 3172)
+    		{
+        		// coordinator IEEE address
+    			pdst->IEEE_destination_address = 0x124B0006E2EE0B;
+    		}
+    		pdst->cluster_id = ep_cl[0].cl;
+    		pdst->destination_endpoint = ep_cl[0].ep;
+    		pdst->source_endpoint = ep_cl[0].ep;
+    		pdst->transaction_id = 0;
     		if (len >= 0)
     		{
         		p_req->message_length = len;
@@ -267,6 +319,7 @@ int main(int argc, char *argv[])
     	}
     	else
 #endif
+    	if ((c_from_kbd == 'e') || (c_from_kbd == 'E'))
     	{
         	unsigned int idx_loop_tx;
         	//for (idx_loop_tx = 0; idx_loop_tx < 1+(rand()%8); idx_loop_tx++)
@@ -302,9 +355,9 @@ int main(int argc, char *argv[])
     	}
         {
         	unsigned int idx_loop_rx;
-#define def_pause_base_time_us 10000
-#define def_loop_duration_time_ms 1500
-#define def_loop_rx_num_of ((def_loop_duration_time_ms*1000)/def_pause_base_time_us)
+#define def_pause_base_time_us 1000
+#define def_loop_duration_time_ms 10
+#define def_loop_rx_num_of (1 + (def_loop_duration_time_ms*1000)/def_pause_base_time_us)
         	for (idx_loop_rx = 0; idx_loop_rx < def_loop_rx_num_of; idx_loop_rx++)
         	{
         		// 10 ms pause
@@ -343,6 +396,12 @@ int main(int argc, char *argv[])
                 			{
                 				type_ASAC_ZigBee_interface_network_input_cluster_register_reply * p_icr_reply = &pzmessage_rx->reply.input_cluster_register;
                 				printf("endp/cluster unregister return code %u: %u/%u\n", (unsigned int)p_icr_reply->retcode, (unsigned int)p_icr_reply->endpoint, (unsigned int)p_icr_reply->input_cluster_id);
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_outside_send_message:
+                			{
+                				type_ASAC_ZigBee_interface_command_outside_send_message_reply * p_reply = &pzmessage_rx->reply.outside_send_message;
+                				printf("send message reply %u: %s\n",(unsigned int)p_reply->retcode,  (p_reply->retcode == enum_ASAC_ZigBee_interface_command_outside_send_message_reply_retcode_OK) ? "OK":"ERROR");
                 				break;
                 			}
                 			case enum_ASAC_ZigBee_interface_command_outside_received_message:
