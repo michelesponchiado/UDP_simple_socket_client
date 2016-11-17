@@ -49,7 +49,7 @@ void error(const char *msg)
 void prepare_formatted_message(char *buffer, unsigned int buffer_size, unsigned int message_index)
 {
 	int res = buffer_size;
-	int used = 0;
+	unsigned int used = 0;
 	char * pc = buffer;
 	used += snprintf(pc,res,"STX %4i ETX",message_index);
 	pc += used;
@@ -190,14 +190,15 @@ int main(int argc, char *argv[])
 	}type_ep_cl;
 	type_ep_cl ep_cl[1] =
 	{
-			{.ep = 2, .cl = 4},
+			{.ep = 1, .cl = 6},
 	};
 
 	{
     	unsigned int idx_loop_tx;
         for (idx_loop_tx = 0; idx_loop_tx < sizeof(ep_cl)/sizeof(ep_cl[0]); idx_loop_tx++)
     	{
-    		type_ASAC_Zigbee_interface_request zmessage_tx = {0};
+    		type_ASAC_Zigbee_interface_request zmessage_tx;
+		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
     		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_input_cluster_register_req;
     		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),input_cluster_register);
     		type_ASAC_ZigBee_interface_network_input_cluster_register_req * p_ic_req = &zmessage_tx.req.input_cluster_register;
@@ -286,7 +287,8 @@ int main(int argc, char *argv[])
     		printf("%s: sending message: <%s>\n", __func__, text_to_send);
 			printf("**********************************\n");
 			printf("\n");
-    		type_ASAC_Zigbee_interface_request zmessage_tx = {0};
+    		type_ASAC_Zigbee_interface_request zmessage_tx;
+		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
     		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_outside_send_message;
     		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),outside_send_message);
     		type_ASAC_ZigBee_interface_command_outside_send_message_req * p_req = &zmessage_tx.req.outside_send_message;
@@ -337,7 +339,8 @@ int main(int argc, char *argv[])
             for (idx_loop_tx = 0; idx_loop_tx < 1; idx_loop_tx++)
         	{
         		static unsigned int ui_cnt_echo;
-        		type_ASAC_Zigbee_interface_request zmessage_tx = {0};
+        		type_ASAC_Zigbee_interface_request zmessage_tx;
+			memset(&zmessage_tx, 0, sizeof(zmessage_tx));
         		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_echo_req;
         		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),echo);
         		type_ASAC_ZigBee_interface_network_echo_req * p_echo_req = &zmessage_tx.req.echo;
@@ -376,7 +379,7 @@ int main(int argc, char *argv[])
         		type_struct_ASACSOCKET_msg amessage_rx;
         		memset(&amessage_rx,0,sizeof(amessage_rx));
 
-                unsigned int slen=sizeof(serv_addr);
+                socklen_t slen=sizeof(serv_addr);
                 int n_received_bytes = 0;
                 //try to receive some data, this is a blocking call
                 n_received_bytes = recvfrom(sockfd, (char *)&amessage_rx, sizeof(amessage_rx), 0, (struct sockaddr *) &serv_addr, &slen) ;
