@@ -32,13 +32,9 @@
 #include "ASAC_ZigBee_network_commands.h"
 #include "ASACSOCKET_check.h"
 
-// the port number we use
-#define def_use_secondary_port
-#ifdef def_use_secondary_port
-#define def_port_number 3118
-#else
+// the default port number we use
 #define def_port_number 3117
-#endif
+
 
 
 void error(const char *msg)
@@ -261,17 +257,28 @@ int main(int argc, char *argv[])
 	unsigned int idx_global_loop = 0;
     while(1)
     {
+#ifndef ANDROID
     	int c_from_kbd = getchar();
     	if (c_from_kbd == 'q' || c_from_kbd == 'Q')
     	{
     		break;
     	}
+#endif
     	//char message[256];
     	++idx_global_loop;
 #define def_send_outside_messages
 #ifdef def_send_outside_messages
+
+#ifdef ANDROID
+	usleep(1000);
+	if (idx_global_loop == 5000)
+#else
     	if ((c_from_kbd == 'm') || (c_from_kbd == 'M'))
+#endif
     	{
+#ifdef ANDROID
+	idx_global_loop = 0;
+#endif
     		static uint32_t idx_msg;
     		static char * the_messages[]=
     		{
@@ -294,6 +301,9 @@ int main(int argc, char *argv[])
     		type_ASAC_ZigBee_interface_command_outside_send_message_req * p_req = &zmessage_tx.req.outside_send_message;
     		int len = snprintf((char*)p_req->message,sizeof(p_req->message),"%s", text_to_send);
     		type_ASAC_ZigBee_dst_id *pdst = &p_req->dst_id;
+#ifdef ANDROID
+		pdst->IEEE_destination_address = 0x124B0006E2EE0B;
+#else
     		// end-device IEEE address
     		pdst->IEEE_destination_address = 0x124B0006E30188;
     		if (portno == 3172)
@@ -301,6 +311,7 @@ int main(int argc, char *argv[])
         		// coordinator IEEE address
     			pdst->IEEE_destination_address = 0x124B0006E2EE0B;
     		}
+#endif
     		pdst->cluster_id = ep_cl[0].cl;
     		pdst->destination_endpoint = ep_cl[0].ep;
     		pdst->source_endpoint = ep_cl[0].ep;
@@ -332,7 +343,12 @@ int main(int argc, char *argv[])
     	}
     	else
 #endif
+
+#ifdef ANDROID
+	if (idx_global_loop == 2500)
+#else
     	if ((c_from_kbd == 'e') || (c_from_kbd == 'E'))
+#endif
     	{
         	unsigned int idx_loop_tx;
         	//for (idx_loop_tx = 0; idx_loop_tx < 1+(rand()%8); idx_loop_tx++)
@@ -372,13 +388,19 @@ int main(int argc, char *argv[])
 #define def_pause_base_time_us 1000
 #define def_loop_duration_time_ms 10
 #define def_loop_rx_num_of (1 + (def_loop_duration_time_ms*1000)/def_pause_base_time_us)
+
+#ifndef ANDROID
         	for (idx_loop_rx = 0; idx_loop_rx < def_loop_rx_num_of; idx_loop_rx++)
         	{
         		// 10 ms pause
             	usleep(def_pause_base_time_us);
+#else
+        	for (idx_loop_rx = 0; idx_loop_rx < 1; idx_loop_rx++)
+        	{
+#endif
+
         		type_struct_ASACSOCKET_msg amessage_rx;
         		memset(&amessage_rx,0,sizeof(amessage_rx));
-
                 socklen_t slen=sizeof(serv_addr);
                 int n_received_bytes = 0;
                 //try to receive some data, this is a blocking call
@@ -456,8 +478,9 @@ int main(int argc, char *argv[])
                 }
         	}
         }
-
+#ifndef ANDROID
     	usleep(100000);
+#endif
     }
     close(sockfd);
     return 0;
