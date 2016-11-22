@@ -475,7 +475,8 @@ int main(int argc, char *argv[])
     	}
 #endif
 	}
-
+	uint32_t device_list_update_req = 0;
+	uint32_t device_list_update_ack = 0;
 	unsigned int idx_global_loop = 0;
     while(1)
     {
@@ -494,6 +495,7 @@ int main(int argc, char *argv[])
     	// 'v' get server firmware version
     	if ((c_from_kbd == 'v') || (c_from_kbd == 'V'))
     	{
+    		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
     		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_firmware_version_req;
@@ -527,8 +529,9 @@ int main(int argc, char *argv[])
 
 #ifndef ANDROID
     	// 'l' get devices list
-    	if ((c_from_kbd == 'l') || (c_from_kbd == 'L'))
+    	if ((device_list_update_req != device_list_update_ack) || (c_from_kbd == 'l') || (c_from_kbd == 'L'))
     	{
+    		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
     		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_device_list_req;
@@ -742,6 +745,13 @@ int main(int argc, char *argv[])
                 			{
                 				type_ASAC_ZigBee_interface_network_firmware_version_reply * p_reply = &pzmessage_rx->reply.firmware_version;
                 				printf("%s: server firmware version is: %s\n",__func__, p_reply->string);
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_device_list_changed_signal:
+                			{
+                				device_list_update_req++;
+                				type_ASAC_ZigBee_interface_network_device_list_changed_signal * p_signal = &pzmessage_rx->reply.device_list_changed;
+                				printf("%s: device list has changed to sequence number %u\n",__func__, p_signal->sequence_number);
                 				break;
                 			}
                 			case enum_ASAC_ZigBee_interface_command_network_device_list_req:
