@@ -563,6 +563,40 @@ int main(int argc, char *argv[])
     	}
 #endif
 
+#ifndef ANDROID
+    	// 'I' get my IEEE address
+    	if ((c_from_kbd == 'I') || (c_from_kbd == 'i'))
+    	{
+    		device_list_update_ack = device_list_update_req;
+    		type_ASAC_Zigbee_interface_request zmessage_tx;
+    		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_my_IEEE_req;
+    		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),my_IEEE);
+    		type_ASAC_ZigBee_interface_network_my_IEEE_req * p_req = &zmessage_tx.req.my_IEEE;
+    		p_req->unused = 0;
+    		{
+        		type_struct_ASACSOCKET_msg amessage_tx;
+        		memset(&amessage_tx,0,sizeof(amessage_tx));
+
+        		unsigned int amessage_tx_size = 0;
+        		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+        		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+        		{
+    				unsigned int slen=sizeof(serv_addr);
+    				//send the message
+    				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+    				{
+    					printf("%s: (my IEEE) error on sendto()", __func__);
+    				}
+    				else
+    				{
+    					printf("%s: (my IEEE) TX message OK\n",__func__);
+    				}
+        		}
+    		}
+
+    	}
+#endif
 
 #ifdef ANDROID
 	usleep(1000);
@@ -759,7 +793,6 @@ int main(int argc, char *argv[])
                 				type_ASAC_ZigBee_interface_network_device_list_reply * p_reply = &pzmessage_rx->reply.device_list;
                 				printf("device list:\n");
                 				printf("\t sequence valid : %u\n", p_reply->sequence_valid);
-                				printf("\t my IEEE address: 0x%" PRIx64 "\n", p_reply->my_IEEE_address);
                 				printf("\t start index    : %u\n", p_reply->start_index);
                 				printf("\t list ends here : %u\n", p_reply->list_ends_here);
                 				printf("\t # of devices	   : %u\n", p_reply->num_devices_in_chunk);
@@ -767,6 +800,16 @@ int main(int argc, char *argv[])
                 				for (i = 0; i < p_reply->num_devices_in_chunk; i++)
                 				{
                     				printf("\t IEEE address %02i: 0x%" PRIx64 "\n", i, p_reply->list_chunk[i].IEEE_address);
+                				}
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_network_my_IEEE_req:
+                			{
+                				type_ASAC_ZigBee_interface_network_my_IEEE_reply * p_reply = &pzmessage_rx->reply.my_IEEE;
+                				printf("my IEEE address is %s:\n", p_reply->is_valid_IEEE_address ? "valid":"NOT valid");
+                				if (p_reply->is_valid_IEEE_address)
+                				{
+                    				printf("\t my IEEE address is 0x%" PRIx64 "\n", p_reply->IEEE_address);
                 				}
                 				break;
                 			}
