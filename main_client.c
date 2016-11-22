@@ -28,6 +28,7 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <poll.h>
+#include <inttypes.h>
 
 #include "ASAC_ZigBee_network_commands.h"
 #include "ASACSOCKET_check.h"
@@ -100,8 +101,12 @@ static void my_at_exit(void)
 	close(sockfd);
 }
 
+#define def_send_broadcast_packet
+
+
 int main(int argc, char *argv[])
 {
+
 	int already_print_socket = 0;
 	tcgetattr(0,&initial_settings);
 
@@ -134,7 +139,221 @@ int main(int argc, char *argv[])
 		fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
 	}
 
-#define def_use_local_host
+#ifdef def_send_broadcast_packet
+	struct sockaddr_in broadcastAddr;
+	struct sockaddr_in broadcastAddr_rx;
+	struct sockaddr_in broadcastAddr_rx_found;
+	char *broadcastIP;
+	unsigned short broadcastPort;
+	int broadcastPermission;
+
+	broadcastIP = "255.255.255.255";
+	broadcastPort = portno;
+	broadcastPermission = 1;
+	if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, (void *) &broadcastPermission,sizeof(broadcastPermission)) < 0){
+	   fprintf(stderr, "setsockopt error enabling broadcast permission!");
+	   exit(1);
+	}
+	unsigned int num_reply_received_OK = 0;
+
+	/* Construct local address structure */
+	printf("Looking for server via broadcast messages\n");
+	unsigned int idx_send_broadcast;
+#define def_num_loop_try 5
+    for (idx_send_broadcast = 0; idx_send_broadcast < def_num_loop_try; idx_send_broadcast++)
+	{
+    	printf("Loop %i of %i\n", (idx_send_broadcast+1), def_num_loop_try);
+		static unsigned int ui_cnt_echo;
+		type_ASAC_Zigbee_interface_request zmessage_tx;
+		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_echo_req;
+		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),echo);
+		type_ASAC_ZigBee_interface_network_echo_req * p_echo_req = &zmessage_tx.req.echo;
+		snprintf((char*)p_echo_req->message_to_echo,sizeof(p_echo_req->message_to_echo),"hello %u", ++ui_cnt_echo);
+
+		type_struct_ASACSOCKET_msg amessage_tx;
+		memset(&amessage_tx,0,sizeof(amessage_tx));
+
+		unsigned int amessage_tx_size = 0;
+		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+		{
+			FILE *f;
+			f = fopen("echo.txt","wb");
+			char *pc = (char*) &amessage_tx;
+			unsigned int i;
+			fprintf(f, "//Dump of the echo message with body=<%s>, the total message dump length is %u bytes\n",p_echo_req->message_to_echo, (unsigned int)amessage_tx_size);
+			unsigned int num_bytes_written = 0;
+			unsigned int just_return = 0;
+			for (i = 0; i < amessage_tx_size; i++)
+			{
+				fprintf(f, "0x%02X ",(*pc++)&0xff);
+				if (++ num_bytes_written >= 16)
+				{
+					num_bytes_written = 0;
+					fprintf(f, "\r\n");
+					just_return = 1;
+				}
+				else
+				{
+					just_return = 0;
+				}
+			}
+			if (!just_return)
+			{
+				fprintf(f, "\r\n");
+			}
+			fclose(f);
+		}
+		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+		{
+			memset(&broadcastAddr, 0, sizeof(broadcastAddr));
+			broadcastAddr.sin_family = AF_INET;
+			broadcastAddr.sin_addr.s_addr = inet_addr(broadcastIP);
+			broadcastAddr.sin_port = htons(broadcastPort);
+			unsigned int slen=sizeof(broadcastAddr);
+			//send the message
+			if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &broadcastAddr, slen)==-1)
+			{
+				printf("%s: error on broadcast sendto()\n", __func__);
+			}
+			else
+			{
+				printf("%s broadcast message sent OK: %s\n",__func__, p_echo_req->message_to_echo);
+			}
+		}
+
+		unsigned int idx_loop_rx_broadcast_reply;
+		unsigned int num_reply_received_actual_loop = 0;
+#define def_broadcast_wait_time_ms 1000
+#define def_broadcast_wait_pause_ms 1
+#define def_broadcast_wait_pause_us (def_broadcast_wait_pause_ms * 1000)
+#define def_loop_rx_broadcast_num_of (1 + def_broadcast_wait_time_ms/def_broadcast_wait_pause_ms)
+    	for (idx_loop_rx_broadcast_reply = 0; idx_loop_rx_broadcast_reply < def_loop_rx_broadcast_num_of; idx_loop_rx_broadcast_reply++)
+    	{
+    		if (num_reply_received_actual_loop >= 1)
+    		{
+    			break;
+    		}
+        	usleep(def_broadcast_wait_pause_us);
+    		type_struct_ASACSOCKET_msg amessage_rx;
+    		memset(&amessage_rx,0,sizeof(amessage_rx));
+            int n_received_bytes = 0;
+        	broadcastAddr_rx = broadcastAddr;
+            socklen_t slen=sizeof(broadcastAddr_rx);
+
+            //try to receive some data, this is a blocking call
+            n_received_bytes = recvfrom(sockfd, (char *)&amessage_rx, sizeof(amessage_rx), 0, (struct sockaddr *) &broadcastAddr_rx, &slen) ;
+            if (n_received_bytes == -1)
+            {
+            	//printf("error on recvfrom()");
+            }
+            else
+            {
+                {
+        			char *ip = inet_ntoa(broadcastAddr_rx.sin_addr);
+        			printf("WOW BROADCAST REPLY! %s: socket ip:%s, port=%u\n", __func__,ip, (unsigned int)broadcastAddr_rx.sin_port);
+                }
+            	if (check_ASACSOCKET_formatted_message((char *)&amessage_rx, n_received_bytes) == enum_check_ASACSOCKET_formatted_message_OK)
+            	{
+            		type_ASAC_Zigbee_interface_command_reply *pzmessage_rx = (type_ASAC_Zigbee_interface_command_reply *)&(amessage_rx.body);
+            		switch(pzmessage_rx->code)
+            		{
+            			case enum_ASAC_ZigBee_interface_command_network_echo_req:
+            			{
+            				num_reply_received_OK++;
+            				num_reply_received_actual_loop = 0;
+            				broadcastAddr_rx_found = broadcastAddr_rx;
+            				type_ASAC_ZigBee_interface_network_echo_reply * p_echo_reply = &pzmessage_rx->reply.echo;
+            				printf("\t%s: RX echo: %s\n", __func__,p_echo_reply->message_to_echo);
+            				break;
+            			}
+            			case enum_ASAC_ZigBee_interface_command_network_input_cluster_register_req:
+            			{
+            				type_ASAC_ZigBee_interface_network_input_cluster_register_reply * p_icr_reply = &pzmessage_rx->reply.input_cluster_register;
+            				printf("\t%s: RX endp/cluster register return code %u: %u/%u\n", __func__,(unsigned int)p_icr_reply->retcode, (unsigned int)p_icr_reply->endpoint, (unsigned int)p_icr_reply->input_cluster_id);
+            				break;
+            			}
+            			case enum_ASAC_ZigBee_interface_command_network_input_cluster_unregister_req:
+            			{
+            				type_ASAC_ZigBee_interface_network_input_cluster_register_reply * p_icr_reply = &pzmessage_rx->reply.input_cluster_register;
+            				printf("\t%s: RX endp/cluster unregister return code %u: %u/%u\n", __func__,(unsigned int)p_icr_reply->retcode, (unsigned int)p_icr_reply->endpoint, (unsigned int)p_icr_reply->input_cluster_id);
+            				break;
+            			}
+            			case enum_ASAC_ZigBee_interface_command_outside_send_message:
+            			{
+            				type_ASAC_ZigBee_interface_command_outside_send_message_reply * p_reply = &pzmessage_rx->reply.outside_send_message;
+            				printf("\t%s: RX send_message reply %u: %s\n",__func__, (unsigned int)p_reply->retcode,  (p_reply->retcode == enum_ASAC_ZigBee_interface_command_outside_send_message_reply_retcode_OK) ? "OK":"ERROR");
+            				break;
+            			}
+            			case enum_ASAC_ZigBee_interface_command_outside_received_message:
+            			{
+            				type_ASAC_ZigBee_interface_command_received_message_callback * p = &pzmessage_rx->reply.received_message_callback;
+            				printf("\n******************************\n\t%s: RX message callback: <", __func__);
+            				{
+            					unsigned int i;
+            					for (i =0; i < p->message_length; i++)
+            					{
+            						char c = p->message[i];
+            						if (isprint(c))
+            						{
+            							printf("%c",c);
+            						}
+            						else
+            						{
+            							printf("0x%X",(unsigned int)(c));
+            						}
+            					}
+            					printf(">\n\n");
+            				}
+            				break;
+            			}
+            			default:
+            			{
+            				printf("%s: RX unknown message code: %X\n", __func__, pzmessage_rx->code);
+            			}
+            		}
+            	}
+
+            }
+    	}
+
+	}
+	broadcastPermission = 0;
+	if (setsockopt(sockfd, SOL_SOCKET, SO_BROADCAST, (void *) &broadcastPermission,sizeof(broadcastPermission)) < 0){
+	   fprintf(stderr, "setsockopt error disabling broadcast permission!");
+	   exit(1);
+	}
+
+    if (!num_reply_received_OK)
+    {
+    	printf("********* \n");
+    	printf("********* \n");
+    	printf("********* Hmm no server found!\n");
+    	printf("********* \n");
+    	printf("********* \n");
+    	exit(0);
+    }
+    else
+    {
+    	printf("\n\nSome servers found!\n\n\n");
+
+    }
+#endif
+
+
+    struct sockaddr_in serv_addr;
+
+#ifdef def_send_broadcast_packet
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(portno);
+    serv_addr.sin_addr = broadcastAddr_rx_found.sin_addr;
+	char *ip = inet_ntoa(serv_addr.sin_addr);
+	printf("Server at address IP: %s\n", ip);
+#else
+
+//#define def_use_local_host
 #ifdef def_use_local_host
     struct hostent *server;
     server = gethostbyname("localhost");
@@ -142,20 +361,22 @@ int main(int argc, char *argv[])
         fprintf(stderr,"ERROR, no such host\n");
         exit(0);
     }
-    struct sockaddr_in serv_addr;
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(portno);
     bcopy((char *)server->h_addr,
          (char *)&serv_addr.sin_addr.s_addr,
          server->h_length);
-    serv_addr.sin_port = htons(portno);
+    serv_addr.sin_addr.s_addr = INADDR_ANY;
 #else
+    bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(portno);
-    inet_aton("192.168.0.208", &serv_addr.sin_addr);
+//    inet_aton("10.0.0.9", &serv_addr.sin_addr);
+    serv_addr.sin_addr.s_addr = inet_addr("10.0.0.9");
+#endif
 #endif
 
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
 
 
 //#define def_local_check
@@ -194,7 +415,7 @@ int main(int argc, char *argv[])
         for (idx_loop_tx = 0; idx_loop_tx < sizeof(ep_cl)/sizeof(ep_cl[0]); idx_loop_tx++)
     	{
     		type_ASAC_Zigbee_interface_request zmessage_tx;
-		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+    		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
     		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_input_cluster_register_req;
     		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),input_cluster_register);
     		type_ASAC_ZigBee_interface_network_input_cluster_register_req * p_ic_req = &zmessage_tx.req.input_cluster_register;
@@ -220,6 +441,7 @@ int main(int argc, char *argv[])
 					cnt_msg_num++;
 				}
     		}
+
     	}
 #if 0
         for (idx_loop_tx = 0; idx_loop_tx < sizeof(ep_cl)/sizeof(ep_cl[0]); idx_loop_tx++)
@@ -268,6 +490,76 @@ int main(int argc, char *argv[])
     	++idx_global_loop;
 #define def_send_outside_messages
 #ifdef def_send_outside_messages
+#ifndef ANDROID
+    	// 'v' get server firmware version
+    	if ((c_from_kbd == 'v') || (c_from_kbd == 'V'))
+    	{
+    		type_ASAC_Zigbee_interface_request zmessage_tx;
+    		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_firmware_version_req;
+    		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),firmware_version);
+    		type_ASAC_ZigBee_interface_network_firmware_version_req * p_req = &zmessage_tx.req.firmware_version;
+    		p_req->as_yet_unused = 0xa5;
+    		{
+        		type_struct_ASACSOCKET_msg amessage_tx;
+        		memset(&amessage_tx,0,sizeof(amessage_tx));
+
+        		unsigned int amessage_tx_size = 0;
+        		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+        		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+        		{
+    				unsigned int slen=sizeof(serv_addr);
+    				//send the message
+    				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+    				{
+    					printf("%s: (firmware version) error on sendto()", __func__);
+    				}
+    				else
+    				{
+    					printf("%s: (firmware version) TX message OK\n",__func__);
+    				}
+        		}
+    		}
+
+    	}
+#endif
+
+
+#ifndef ANDROID
+    	// 'l' get devices list
+    	if ((c_from_kbd == 'l') || (c_from_kbd == 'L'))
+    	{
+    		type_ASAC_Zigbee_interface_request zmessage_tx;
+    		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_device_list_req;
+    		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),device_list);
+    		type_ASAC_ZigBee_interface_network_device_list_req * p_req = &zmessage_tx.req.device_list;
+    		p_req->sequence = 0;
+    		p_req->start_index = 0;
+    		{
+        		type_struct_ASACSOCKET_msg amessage_tx;
+        		memset(&amessage_tx,0,sizeof(amessage_tx));
+
+        		unsigned int amessage_tx_size = 0;
+        		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+        		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+        		{
+    				unsigned int slen=sizeof(serv_addr);
+    				//send the message
+    				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+    				{
+    					printf("%s: (device list) error on sendto()", __func__);
+    				}
+    				else
+    				{
+    					printf("%s: (device list) TX message OK\n",__func__);
+    				}
+        		}
+    		}
+
+    	}
+#endif
+
 
 #ifdef ANDROID
 	usleep(1000);
@@ -444,6 +736,28 @@ int main(int argc, char *argv[])
                 			{
                 				type_ASAC_ZigBee_interface_command_outside_send_message_reply * p_reply = &pzmessage_rx->reply.outside_send_message;
                 				printf("\t%s: RX send_message reply %u: %s\n",__func__, (unsigned int)p_reply->retcode,  (p_reply->retcode == enum_ASAC_ZigBee_interface_command_outside_send_message_reply_retcode_OK) ? "OK":"ERROR");
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_network_firmware_version_req:
+                			{
+                				type_ASAC_ZigBee_interface_network_firmware_version_reply * p_reply = &pzmessage_rx->reply.firmware_version;
+                				printf("%s: server firmware version is: %s\n",__func__, p_reply->string);
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_network_device_list_req:
+                			{
+                				type_ASAC_ZigBee_interface_network_device_list_reply * p_reply = &pzmessage_rx->reply.device_list;
+                				printf("device list:\n");
+                				printf("\t sequence valid : %u\n", p_reply->sequence_valid);
+                				printf("\t my IEEE address: 0x%" PRIx64 "\n", p_reply->my_IEEE_address);
+                				printf("\t start index    : %u\n", p_reply->start_index);
+                				printf("\t list ends here : %u\n", p_reply->list_ends_here);
+                				printf("\t # of devices	   : %u\n", p_reply->num_devices_in_chunk);
+                				unsigned int i;
+                				for (i = 0; i < p_reply->num_devices_in_chunk; i++)
+                				{
+                    				printf("\t IEEE address %02i: 0x%" PRIx64 "\n", i, p_reply->list_chunk[i].IEEE_address);
+                				}
                 				break;
                 			}
                 			case enum_ASAC_ZigBee_interface_command_outside_received_message:
