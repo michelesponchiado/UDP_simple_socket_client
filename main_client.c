@@ -491,10 +491,11 @@ int main(int argc, char *argv[])
 	}
 	uint32_t device_list_update_req = 0;
 	uint32_t device_list_update_ack = 0;
+#ifdef ANDROID
 	uint32_t ui_fw_already_sent = 0;
 	uint32_t ui_dl_already_sent = 0;
 	uint32_t ui_ie_already_sent = 0;
-
+#endif
 	uint64_t IEEE_dst_address = 0;
 
 	unsigned int idx_global_loop = 0;
@@ -520,7 +521,10 @@ int main(int argc, char *argv[])
     	if (idx_global_loop == 1 && !ui_fw_already_sent)
 #endif
     	{
+
+#ifdef ANDROID
 		ui_fw_already_sent = 1;
+#endif
     		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
@@ -559,7 +563,10 @@ int main(int argc, char *argv[])
     	if (idx_global_loop == 6 && !ui_dl_already_sent)
 #endif
     	{
-		ui_dl_already_sent =1;
+
+#ifdef ANDROID
+    		ui_dl_already_sent =1;
+#endif
     		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
@@ -598,7 +605,10 @@ int main(int argc, char *argv[])
     	if (idx_global_loop == 2 && !ui_ie_already_sent)
 #endif
     	{
-		ui_ie_already_sent = 1;
+
+#ifdef ANDROID
+    		ui_ie_already_sent = 1;
+#endif
     		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
