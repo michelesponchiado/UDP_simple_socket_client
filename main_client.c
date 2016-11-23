@@ -36,6 +36,14 @@
 // the default port number we use
 #define def_port_number 3117
 
+#ifdef ANDROID
+	#undef def_send_broadcast_packet
+	#define def_use_local_host
+#else
+	#define def_send_broadcast_packet
+#endif
+
+
 
 
 void error(const char *msg)
@@ -101,7 +109,7 @@ static void my_at_exit(void)
 	close(sockfd);
 }
 
-#define def_send_broadcast_packet
+
 
 
 int main(int argc, char *argv[])
@@ -176,6 +184,7 @@ int main(int argc, char *argv[])
 
 		unsigned int amessage_tx_size = 0;
 		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+#if 0
 		{
 			FILE *f;
 			f = fopen("echo.txt","wb");
@@ -204,6 +213,7 @@ int main(int argc, char *argv[])
 			}
 			fclose(f);
 		}
+#endif
 		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
 		{
 			memset(&broadcastAddr, 0, sizeof(broadcastAddr));
@@ -355,12 +365,14 @@ int main(int argc, char *argv[])
 
 //#define def_use_local_host
 #ifdef def_use_local_host
+    printf("getting local host name\n");
     struct hostent *server;
     server = gethostbyname("localhost");
     if (server == NULL) {
         fprintf(stderr,"ERROR, no such host\n");
         exit(0);
     }
+    printf("local host name got OK\n");
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(portno);
@@ -414,6 +426,8 @@ int main(int argc, char *argv[])
     	unsigned int idx_loop_tx;
         for (idx_loop_tx = 0; idx_loop_tx < sizeof(ep_cl)/sizeof(ep_cl[0]); idx_loop_tx++)
     	{
+		printf("sending ep/cluster id loop %u\n", idx_loop_tx);
+    
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
     		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_input_cluster_register_req;
@@ -477,7 +491,12 @@ int main(int argc, char *argv[])
 	}
 	uint32_t device_list_update_req = 0;
 	uint32_t device_list_update_ack = 0;
+	uint32_t ui_fw_already_sent = 0;
+	uint32_t ui_dl_already_sent = 0;
+	uint32_t ui_ie_already_sent = 0;
+
 	unsigned int idx_global_loop = 0;
+	printf("main loop starts\n");
     while(1)
     {
 #ifndef ANDROID
@@ -496,9 +515,10 @@ int main(int argc, char *argv[])
     	if ((c_from_kbd == 'v') || (c_from_kbd == 'V'))
 #else
     	// 'v' get server firmware version
-    	if (idx_global_loop == 1)
+    	if (idx_global_loop == 1 && !ui_fw_already_sent)
 #endif
     	{
+		ui_fw_already_sent = 1;
     		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
@@ -534,9 +554,10 @@ int main(int argc, char *argv[])
     	// 'l' get devices list
     	if ((device_list_update_req != device_list_update_ack) || (c_from_kbd == 'l') || (c_from_kbd == 'L'))
 #else
-    	if (idx_global_loop == 6)
+    	if (idx_global_loop == 6 && !ui_dl_already_sent)
 #endif
     	{
+		ui_dl_already_sent =1;
     		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
@@ -572,9 +593,10 @@ int main(int argc, char *argv[])
     	// 'I' get my IEEE address
     	if ((c_from_kbd == 'I') || (c_from_kbd == 'i'))
 #else
-    	if (idx_global_loop == 2)
+    	if (idx_global_loop == 2 && !ui_ie_already_sent)
 #endif
     	{
+		ui_ie_already_sent = 1;
     		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
