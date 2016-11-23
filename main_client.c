@@ -494,6 +494,10 @@ int main(int argc, char *argv[])
 #ifndef ANDROID
     	// 'v' get server firmware version
     	if ((c_from_kbd == 'v') || (c_from_kbd == 'V'))
+#else
+    	// 'v' get server firmware version
+    	if (idx_global_loop == 1)
+#endif
     	{
     		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
@@ -524,12 +528,14 @@ int main(int argc, char *argv[])
     		}
 
     	}
-#endif
 
 
 #ifndef ANDROID
     	// 'l' get devices list
     	if ((device_list_update_req != device_list_update_ack) || (c_from_kbd == 'l') || (c_from_kbd == 'L'))
+#else
+    	if (idx_global_loop == 6)
+#endif
     	{
     		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
@@ -561,11 +567,13 @@ int main(int argc, char *argv[])
     		}
 
     	}
-#endif
 
 #ifndef ANDROID
     	// 'I' get my IEEE address
     	if ((c_from_kbd == 'I') || (c_from_kbd == 'i'))
+#else
+    	if (idx_global_loop == 2)
+#endif
     	{
     		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
@@ -596,7 +604,7 @@ int main(int argc, char *argv[])
     		}
 
     	}
-#endif
+
 
 #ifdef ANDROID
 	usleep(1000);
