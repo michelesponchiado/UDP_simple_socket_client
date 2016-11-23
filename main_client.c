@@ -495,6 +495,8 @@ int main(int argc, char *argv[])
 	uint32_t ui_dl_already_sent = 0;
 	uint32_t ui_ie_already_sent = 0;
 
+	uint64_t IEEE_dst_address = 0;
+
 	unsigned int idx_global_loop = 0;
 	printf("main loop starts\n");
     while(1)
@@ -661,7 +663,14 @@ int main(int argc, char *argv[])
     		int len = snprintf((char*)p_req->message,sizeof(p_req->message),"%s", text_to_send);
     		type_ASAC_ZigBee_dst_id *pdst = &p_req->dst_id;
 #ifdef ANDROID
-		pdst->IEEE_destination_address = 0x124B0006E2EE0B;
+    		if (IEEE_dst_address)
+    		{
+    			pdst->IEEE_destination_address = IEEE_dst_address;
+    		}
+    		else
+    		{
+    			pdst->IEEE_destination_address = 0x124B0006E2EE0B;
+    		}
 #else
     		// end-device IEEE address
     		pdst->IEEE_destination_address = 0x124B0006E30188;
@@ -669,6 +678,10 @@ int main(int argc, char *argv[])
     		{
         		// coordinator IEEE address
     			pdst->IEEE_destination_address = 0x124B0006E2EE0B;
+    		}
+    		if (IEEE_dst_address)
+    		{
+    			pdst->IEEE_destination_address = IEEE_dst_address;
     		}
 #endif
     		pdst->cluster_id = ep_cl[0].cl;
@@ -830,6 +843,10 @@ int main(int argc, char *argv[])
                 				for (i = 0; i < p_reply->num_devices_in_chunk; i++)
                 				{
                     				printf("\t IEEE address %02i: 0x%" PRIx64 "\n", i, p_reply->list_chunk[i].IEEE_address);
+                				}
+                				if (p_reply->num_devices_in_chunk > 0)
+                				{
+                    				IEEE_dst_address = p_reply->list_chunk[0].IEEE_address;
                 				}
                 				break;
                 			}
