@@ -109,6 +109,46 @@ static void my_at_exit(void)
 	close(sockfd);
 }
 
+#ifndef ANDROID
+#define OK       0
+#define NO_INPUT 1
+#define TOO_LONG 2
+static int getLine (char *prmpt, char *buff, size_t sz) {
+    // Get line with buffer overrun protection.
+    if (prmpt != NULL) {
+        printf ("%s", prmpt);
+        fflush (stdout);
+    }
+    uint32_t n_read = 0;
+    while(1)
+    {
+        if (n_read + 1 >= sz)
+        {
+        	break;
+        }
+        fflush (stdin);
+        int c = fgetc (stdin);
+        if (c == EOF)
+        {
+        	continue;
+        }
+        if (c == 0x0d || c== '\n')
+        {
+        	break;
+        }
+        fputc(c, stdout);
+        *buff++ = c&0xff;
+        n_read++;
+    }
+    if (n_read == 0 || sz == 0)
+        return NO_INPUT;
+    if (n_read < sz )
+    	*buff = 0;
+
+    return OK;
+}
+#endif
+
 
 
 
@@ -671,6 +711,83 @@ int main(int argc, char *argv[])
 
     	}
 #endif
+
+#ifndef ANDROID
+    	// @ sends user message
+    	if (c_from_kbd == '@')
+    	{
+
+    		char buff[129];
+    		memset(buff, 0, sizeof(buff));
+    		if (getLine ("text to send:", buff, sizeof(buff) - 1) == OK)
+    		{
+    			printf("\n\n");
+    			printf("**********************************\n");
+        		printf("%s: sending message: <%s>\n", __func__, buff);
+    			printf("**********************************\n");
+    			printf("\n");
+        		type_ASAC_Zigbee_interface_request zmessage_tx;
+        		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+        		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_outside_send_message;
+        		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),outside_send_message);
+        		type_ASAC_ZigBee_interface_command_outside_send_message_req * p_req = &zmessage_tx.req.outside_send_message;
+        		int len = snprintf((char*)p_req->message,sizeof(p_req->message),"%s", buff);
+        		type_ASAC_ZigBee_dst_id *pdst = &p_req->dst_id;
+    #ifdef ANDROID
+        		if (IEEE_dst_address)
+        		{
+        			pdst->IEEE_destination_address = IEEE_dst_address;
+        		}
+        		else
+        		{
+        			pdst->IEEE_destination_address = 0x124B0006E2EE0B;
+        		}
+    #else
+        		// end-device IEEE address
+        		pdst->IEEE_destination_address = 0x124B0006E30188;
+        		if (portno == 3172)
+        		{
+            		// coordinator IEEE address
+        			pdst->IEEE_destination_address = 0x124B0006E2EE0B;
+        		}
+        		if (IEEE_dst_address)
+        		{
+        			pdst->IEEE_destination_address = IEEE_dst_address;
+        		}
+    #endif
+        		pdst->cluster_id = ep_cl[0].cl;
+        		pdst->destination_endpoint = ep_cl[0].ep;
+        		pdst->source_endpoint = ep_cl[0].ep;
+        		pdst->transaction_id = 0;
+        		if (len >= 0)
+        		{
+            		p_req->message_length = len;
+            		type_struct_ASACSOCKET_msg amessage_tx;
+            		memset(&amessage_tx,0,sizeof(amessage_tx));
+
+            		unsigned int amessage_tx_size = 0;
+            		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+            		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+            		{
+        				unsigned int slen=sizeof(serv_addr);
+        				//send the message
+        				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+        				{
+        					printf("%s: error on sendto()", __func__);
+        				}
+        				else
+        				{
+        					printf("%s: TX message OK: %*.*s\n",__func__,len, len, p_req->message);
+        				}
+            		}
+        		}
+    		}
+
+
+    	}
+    	else
+#endif
+
 
 
 #ifdef ANDROID
