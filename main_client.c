@@ -639,6 +639,39 @@ int main(int argc, char *argv[])
 
     	}
 
+#ifndef ANDROID
+    	// 'U' get link quality
+    	if ((c_from_kbd == 'U') || (c_from_kbd == 'u'))
+    	{
+
+    		type_ASAC_Zigbee_interface_request zmessage_tx;
+    		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_signal_strength_req;
+    		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),signal_strength);
+    		{
+        		type_struct_ASACSOCKET_msg amessage_tx;
+        		memset(&amessage_tx,0,sizeof(amessage_tx));
+
+        		unsigned int amessage_tx_size = 0;
+        		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+        		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+        		{
+    				unsigned int slen=sizeof(serv_addr);
+    				//send the message
+    				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+    				{
+    					printf("%s: (my IEEE) error on sendto()", __func__);
+    				}
+    				else
+    				{
+    					printf("%s: (my IEEE) TX message OK\n",__func__);
+    				}
+        		}
+    		}
+
+    	}
+#endif
+
 
 #ifdef ANDROID
 	usleep(1000);
@@ -839,6 +872,37 @@ int main(int argc, char *argv[])
                 				device_list_update_req++;
                 				type_ASAC_ZigBee_interface_network_device_list_changed_signal * p_signal = &pzmessage_rx->reply.device_list_changed;
                 				printf("%s: device list has changed to sequence number %u\n",__func__, p_signal->sequence_number);
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_network_signal_strength_req:
+                			{
+                				type_ASAC_ZigBee_interface_network_signal_strength_reply * p_reply = &pzmessage_rx->reply.signal_strength;
+                				char *pc = "unknown";
+                				switch(p_reply->level_min0_max4)
+                				{
+                					case 0:
+                					default:
+                					{
+                						break;
+                					}
+                					case 1:
+                					{
+                						pc = "low";
+                					}
+                					case 2:
+                					{
+                						pc = "normal";
+                					}
+                					case 3:
+                					{
+                						pc = "good";
+                					}
+                					case 4:
+                					{
+                						pc = "excellent";
+                					}
+                				}
+                				printf("%s: signal strength is %s (%u / %i dBm), %" PRIi64 " ms ago\n",__func__, pc, p_reply->level_min0_max4, p_reply->v_dBm, p_reply->milliseconds_ago);
                 				break;
                 			}
                 			case enum_ASAC_ZigBee_interface_command_network_device_list_req:
