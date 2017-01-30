@@ -42,9 +42,36 @@
 #else
 	#define def_send_broadcast_packet
 #endif
+static uint32_t get_new_link_id(void)
+{
+	static uint32_t cur_id = defFirstValidLinkId;
+	uint32_t id = cur_id;
+	uint32_t new_id = cur_id;
+	if (new_id >= defLastValidLinkId)
+	{
+		new_id = defFirstValidLinkId;
+	}
+	else
+	{
+		new_id++;
+	}
+	cur_id = new_id;
+	return id;
+}
 
-
-
+static void init_header_protocol(type_ASAC_Zigbee_interface_protocol_header *p)
+{
+	p->major_protocol_id = def_ASACZ_ZIGBEE_NETWORK_COMMANDS_PROTOCOL_MAJOR_VERSION;
+	p->minor_protocol_id = def_ASACZ_ZIGBEE_NETWORK_COMMANDS_PROTOCOL_MINOR_VERSION;
+}
+static void init_header(type_ASAC_Zigbee_interface_header *p, uint32_t command_version, uint32_t command_code, uint32_t link_id)
+{
+	init_header_protocol(&p->p);
+	type_ASAC_Zigbee_interface_command_header *pc = &p->c;
+	pc->command_version = command_version;
+	pc->command_code = command_code;
+	pc->command_link_id = link_id;
+}
 
 void error(const char *msg)
 {
@@ -154,6 +181,9 @@ static int getLine (char *prmpt, char *buff, size_t sz) {
 
 int main(int argc, char *argv[])
 {
+	uint64_t available_IEEE_addresses[128];
+	uint32_t numof_available_IEEE_addresses = 0;
+	memset(&available_IEEE_addresses, 0, sizeof(available_IEEE_addresses));
 
 	int already_print_socket = 0;
 	tcgetattr(0,&initial_settings);
@@ -214,7 +244,7 @@ int main(int argc, char *argv[])
 		static unsigned int ui_cnt_echo;
 		type_ASAC_Zigbee_interface_request zmessage_tx;
 		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
-		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_echo_req;
+		init_header(&zmessage_tx.h, def_echo_req_command_version, enum_ASAC_ZigBee_interface_command_network_echo_req, get_new_link_id());
 		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),echo);
 		type_ASAC_ZigBee_interface_network_echo_req * p_echo_req = &zmessage_tx.req.echo;
 		snprintf((char*)p_echo_req->message_to_echo,sizeof(p_echo_req->message_to_echo),"hello %u", ++ui_cnt_echo);
@@ -306,7 +336,7 @@ int main(int argc, char *argv[])
             	if (check_ASACSOCKET_formatted_message((char *)&amessage_rx, n_received_bytes) == enum_check_ASACSOCKET_formatted_message_OK)
             	{
             		type_ASAC_Zigbee_interface_command_reply *pzmessage_rx = (type_ASAC_Zigbee_interface_command_reply *)&(amessage_rx.body);
-            		switch(pzmessage_rx->code)
+            		switch(pzmessage_rx->h.c.command_code)
             		{
             			case enum_ASAC_ZigBee_interface_command_network_echo_req:
             			{
@@ -359,7 +389,7 @@ int main(int argc, char *argv[])
             			}
             			default:
             			{
-            				printf("%s: RX unknown message code: %X\n", __func__, pzmessage_rx->code);
+            				printf("%s: RX unknown message code: %X\n", __func__, pzmessage_rx->h.c.command_code);
             			}
             		}
             	}
@@ -429,7 +459,36 @@ int main(int argc, char *argv[])
 #endif
 #endif
 
+if (1)
+{
+	type_ASAC_Zigbee_interface_request zmessage_tx;
+	memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+	init_header(&zmessage_tx.h, def_my_IEEE_req_command_version, enum_ASAC_ZigBee_interface_command_network_my_IEEE_req, get_new_link_id());
+	unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),my_IEEE);
+	type_ASAC_ZigBee_interface_network_my_IEEE_req * p_req = &zmessage_tx.req.my_IEEE;
+	p_req->unused = 0;
+	{
+		type_struct_ASACSOCKET_msg amessage_tx;
+		memset(&amessage_tx,0,sizeof(amessage_tx));
 
+		unsigned int amessage_tx_size = 0;
+		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+		{
+			unsigned int slen=sizeof(serv_addr);
+			//send the message
+			if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+			{
+				printf("%s: (my IEEE) error on sendto()", __func__);
+			}
+			else
+			{
+				printf("%s: (my IEEE) TX message OK\n",__func__);
+			}
+		}
+	}
+
+}
 
 //#define def_local_check
 #ifdef def_local_check
@@ -470,7 +529,7 @@ int main(int argc, char *argv[])
     
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
-    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_input_cluster_register_req;
+    		init_header(&zmessage_tx.h, def_input_cluster_register_req_command_version, enum_ASAC_ZigBee_interface_command_network_input_cluster_register_req, get_new_link_id());
     		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),input_cluster_register);
     		type_ASAC_ZigBee_interface_network_input_cluster_register_req * p_ic_req = &zmessage_tx.req.input_cluster_register;
     		p_ic_req->endpoint = ep_cl[idx_loop_tx].ep;
@@ -568,7 +627,7 @@ int main(int argc, char *argv[])
     		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
-    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_firmware_version_req;
+    		init_header(&zmessage_tx.h, def_firmware_version_req_command_version, enum_ASAC_ZigBee_interface_command_network_firmware_version_req, get_new_link_id());
     		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),firmware_version);
     		type_ASAC_ZigBee_interface_network_firmware_version_req * p_req = &zmessage_tx.req.firmware_version;
     		p_req->as_yet_unused = 0xa5;
@@ -610,7 +669,7 @@ int main(int argc, char *argv[])
     		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
-    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_device_list_req;
+    		init_header(&zmessage_tx.h, def_device_list_req_command_version, enum_ASAC_ZigBee_interface_command_network_device_list_req, get_new_link_id());
     		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),device_list);
     		type_ASAC_ZigBee_interface_network_device_list_req * p_req = &zmessage_tx.req.device_list;
     		p_req->sequence = 0;
@@ -649,10 +708,9 @@ int main(int argc, char *argv[])
 #ifdef ANDROID
     		ui_ie_already_sent = 1;
 #endif
-    		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
-    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_my_IEEE_req;
+    		init_header(&zmessage_tx.h, def_my_IEEE_req_command_version, enum_ASAC_ZigBee_interface_command_network_my_IEEE_req, get_new_link_id());
     		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),my_IEEE);
     		type_ASAC_ZigBee_interface_network_my_IEEE_req * p_req = &zmessage_tx.req.my_IEEE;
     		p_req->unused = 0;
@@ -686,7 +744,7 @@ int main(int argc, char *argv[])
 
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
-    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_signal_strength_req;
+    		init_header(&zmessage_tx.h, def_signal_strength_req_command_version, enum_ASAC_ZigBee_interface_command_network_signal_strength_req, get_new_link_id());
     		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),signal_strength);
     		{
         		type_struct_ASACSOCKET_msg amessage_tx;
@@ -716,6 +774,31 @@ int main(int argc, char *argv[])
     	// @ sends user message
     	if (c_from_kbd == '@')
     	{
+    		printf("Indirizzo? [1..%i]", numof_available_IEEE_addresses);
+    		int address = getchar();
+    		while(1)
+    		{
+        		address = getchar();
+        		if (address >= '1' && address <= '9')
+        		{
+        			break;
+        		}
+    		}
+    		if (address < '0' || address > '9')
+    		{
+    			address = '1';
+    		}
+    		address = address -'0';
+    		address --;
+    		if (address <= 0)
+    		{
+    			address = 0;
+    		}
+    		if (address >= numof_available_IEEE_addresses)
+    		{
+    			address = 0;
+    		}
+
 
     		char buff[129];
     		memset(buff, 0, sizeof(buff));
@@ -728,7 +811,7 @@ int main(int argc, char *argv[])
     			printf("\n");
         		type_ASAC_Zigbee_interface_request zmessage_tx;
         		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
-        		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_outside_send_message;
+        		init_header(&zmessage_tx.h, def_outside_send_message_req_command_version, enum_ASAC_ZigBee_interface_command_outside_send_message, get_new_link_id());
         		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),outside_send_message);
         		type_ASAC_ZigBee_interface_command_outside_send_message_req * p_req = &zmessage_tx.req.outside_send_message;
         		int len = snprintf((char*)p_req->message,sizeof(p_req->message),"%s", buff);
@@ -753,6 +836,10 @@ int main(int argc, char *argv[])
         		if (IEEE_dst_address)
         		{
         			pdst->IEEE_destination_address = IEEE_dst_address;
+        		}
+        		if (numof_available_IEEE_addresses)
+        		{
+        			pdst->IEEE_destination_address = available_IEEE_addresses[address];
         		}
     #endif
         		pdst->cluster_id = ep_cl[0].cl;
@@ -816,8 +903,8 @@ int main(int argc, char *argv[])
 			printf("**********************************\n");
 			printf("\n");
     		type_ASAC_Zigbee_interface_request zmessage_tx;
-		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
-    		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_outside_send_message;
+    		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+    		init_header(&zmessage_tx.h, def_outside_send_message_req_command_version, enum_ASAC_ZigBee_interface_command_outside_send_message, get_new_link_id());
     		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),outside_send_message);
     		type_ASAC_ZigBee_interface_command_outside_send_message_req * p_req = &zmessage_tx.req.outside_send_message;
     		int len = snprintf((char*)p_req->message,sizeof(p_req->message),"%s", text_to_send);
@@ -888,8 +975,8 @@ int main(int argc, char *argv[])
         	{
         		static unsigned int ui_cnt_echo;
         		type_ASAC_Zigbee_interface_request zmessage_tx;
-			memset(&zmessage_tx, 0, sizeof(zmessage_tx));
-        		zmessage_tx.code = enum_ASAC_ZigBee_interface_command_network_echo_req;
+        		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+        		init_header(&zmessage_tx.h, def_echo_req_command_version, enum_ASAC_ZigBee_interface_command_network_echo_req, get_new_link_id());
         		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),echo);
         		type_ASAC_ZigBee_interface_network_echo_req * p_echo_req = &zmessage_tx.req.echo;
         		snprintf((char*)p_echo_req->message_to_echo,sizeof(p_echo_req->message_to_echo),"hello %u", ++ui_cnt_echo);
@@ -952,7 +1039,7 @@ int main(int argc, char *argv[])
                 	if (check_ASACSOCKET_formatted_message((char *)&amessage_rx, n_received_bytes) == enum_check_ASACSOCKET_formatted_message_OK)
                 	{
                 		type_ASAC_Zigbee_interface_command_reply *pzmessage_rx = (type_ASAC_Zigbee_interface_command_reply *)&(amessage_rx.body);
-                		switch(pzmessage_rx->code)
+                		switch(pzmessage_rx->h.c.command_code)
                 		{
                 			case enum_ASAC_ZigBee_interface_command_network_echo_req:
                 			{
@@ -1030,9 +1117,15 @@ int main(int argc, char *argv[])
                 				printf("\t start index    : %u\n", p_reply->start_index);
                 				printf("\t list ends here : %u\n", p_reply->list_ends_here);
                 				printf("\t # of devices	   : %u\n", p_reply->num_devices_in_chunk);
+                				numof_available_IEEE_addresses = 0;
                 				unsigned int i;
                 				for (i = 0; i < p_reply->num_devices_in_chunk; i++)
                 				{
+                					if (i < sizeof(available_IEEE_addresses)/sizeof(available_IEEE_addresses[0]))
+                					{
+                    					available_IEEE_addresses[i] = p_reply->list_chunk[i].IEEE_address;
+                    					numof_available_IEEE_addresses++;
+                					}
                     				printf("\t IEEE address %02i: 0x%" PRIx64 "\n", i, p_reply->list_chunk[i].IEEE_address);
                 				}
                 				if (p_reply->num_devices_in_chunk > 0)
@@ -1075,7 +1168,7 @@ int main(int argc, char *argv[])
                 			}
                 			default:
                 			{
-                				printf("%s: RX unknown message code: %X\n", __func__, pzmessage_rx->code);
+                				printf("%s: RX unknown message code: %X\n", __func__, pzmessage_rx->h.c.command_code);
                 			}
                 		}
                 	}
