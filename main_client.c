@@ -771,6 +771,90 @@ if (1)
 #endif
 
 #ifndef ANDROID
+    	// 'F' get CC2650 firmware version
+    	if ((c_from_kbd == 'F') || (c_from_kbd == 'f'))
+    	{
+
+    		printf("0 read fw version, 1 start fw update, 2 req fw update status 3 req firmware file info 9 exit\n");
+    		int option = 0;
+    		while(1)
+    		{
+        		c_from_kbd = getchar();
+        		if ((c_from_kbd == '0') || (c_from_kbd == '1') || (c_from_kbd == '2') || (c_from_kbd == '3'))
+        		{
+            		option = c_from_kbd;
+            		break;
+        		}
+        		if (c_from_kbd == '9')
+        		{
+        			break;
+        		}
+
+    		}
+    		if (option > 0)
+    		{
+        		type_ASAC_Zigbee_interface_request zmessage_tx;
+        		type_ASAC_ZigBee_interface_command_fwupd_req * p_req = NULL;
+        		unsigned int zmessage_size = 0;
+        		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+        		init_header(&zmessage_tx.h, def_signal_strength_req_command_version, enum_ASAC_ZigBee_interface_command_administrator_firmware_update, get_new_link_id());
+        		zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx), fwupd_req);
+        		p_req = &zmessage_tx.req.fwupd_req;
+        		p_req->dst.enum_dst = enum_ASAC_ZigBee_fwupd_destination_CC2650;
+        		switch (c_from_kbd)
+        		{
+        			case '0':
+        			default:
+        			{
+        	    		p_req->ops.CC2650= enum_ASAC_ZigBee_fwupd_CC2650_op_read_version;
+        	    		p_req->body.CC2650_read_firmware_version.unused = 0xa55a3663;
+        				break;
+        			}
+        			case '1':
+        			{
+        	    		p_req->ops.CC2650= enum_ASAC_ZigBee_fwupd_CC2650_op_start_update;
+        	    		snprintf((char*)p_req->body.CC2650_start_firmware_update.CC2650_fw_signed_filename, sizeof(p_req->body.CC2650_start_firmware_update.CC2650_fw_signed_filename), "%s", "/usr/ASACZ_CC2650fw_COORDINATOR.2_6_5");
+        				break;
+        			}
+        			case '2':
+        			{
+        	    		p_req->ops.CC2650= enum_ASAC_ZigBee_fwupd_CC2650_op_query_update_status;
+        	    		p_req->body.CC2650_query_firmware_update_status.unused= 0;
+        				break;
+        			}
+        			case '3':
+        			{
+        	    		p_req->ops.CC2650= enum_ASAC_ZigBee_fwupd_CC2650_op_query_firmware_file;
+        	    		snprintf ((char*)p_req->body.CC2650_query_firmware_file_req.CC2650_fw_query_filename, sizeof(p_req->body.CC2650_query_firmware_file_req.CC2650_fw_query_filename), "%s", "/usr/ASACZ_CC2650fw_COORDINATOR.2_6_5");
+        				break;
+        			}
+        		}
+        		{
+            		type_struct_ASACSOCKET_msg amessage_tx;
+            		memset(&amessage_tx,0,sizeof(amessage_tx));
+
+            		unsigned int amessage_tx_size = 0;
+            		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+            		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+            		{
+        				unsigned int slen=sizeof(serv_addr);
+        				//send the message
+        				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+        				{
+        					printf("%s: fwupd request error on sendto()", __func__);
+        				}
+        				else
+        				{
+        					printf("%s: fwupd request TX OK\n",__func__);
+        				}
+            		}
+        		}
+    		}
+    	}
+#endif
+
+
+#ifndef ANDROID
     	// @ sends user message
     	if (c_from_kbd == '@')
     	{
@@ -1142,6 +1226,92 @@ if (1)
                 				{
                     				printf("\t my IEEE address is 0x%" PRIx64 "\n", p_reply->IEEE_address);
                 				}
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_administrator_firmware_update:
+                			{
+                				type_ASAC_ZigBee_interface_command_fwupd_reply * p_reply = &pzmessage_rx->reply.fwupd_reply;
+                				printf("firmware update reply:\n");
+                				switch(p_reply->dst.enum_dst)
+                				{
+                					case enum_ASAC_ZigBee_fwupd_destination_CC2650:
+                					{
+                						printf("\t from CC2650\n");
+                						switch(p_reply->ops.CC2650)
+                						{
+                							case enum_ASAC_ZigBee_fwupd_CC2650_op_read_version:
+                							{
+                        						printf("\t CC2650 firmware version\n");
+                								type_fwupd_CC2650_read_version_reply_body *p_body = &p_reply->body.CC2650_read_firmware_version;
+                        						printf("\t\t number: %u.%u.%u (%s)\n", p_body->major, p_body->middle, p_body->minor, p_body->is_valid ? "valid": "*** NOT VALID ***");
+                        						printf("\t\t product: %u, transport: %u\n", p_body->product, p_body->transport);
+                								break;
+                							}
+                							case enum_ASAC_ZigBee_fwupd_CC2650_op_query_update_status:
+                							{
+                        						printf("\t CC2650 query update status\n");
+                								type_fwupd_CC2650_query_update_status_reply_body *p_body = &p_reply->body.CC2650_query_firmware_update_status;
+                        						printf("\t\t status is %u\n", p_body->status);
+                        						if (p_body->ends_OK)
+                        						{
+                            						printf("\t\t ends OK\n");
+                        						}
+                        						else if (p_body->ends_ERR)
+                        						{
+                            						printf("\t\t ends with ERROR !!!\n");
+                        						}
+                        						printf("\t\t flash write percentage is %u %%\n", p_body->flash_write_percentage);
+                        						if (p_body->fw_update_result_code_is_valid)
+                        						{
+                            						printf("\t\t firmware update result code is %u\n", p_body->fw_update_result_code);
+                            						printf("\t\t firmware update result string is %s\n", p_body->fw_update_result_string);
+                        						}
+                								break;
+                							}
+                							case enum_ASAC_ZigBee_fwupd_CC2650_op_start_update:
+                							{
+                        						printf("\t CC2650 start update\n");
+                								type_fwupd_CC2650_start_update_reply_body *p_body = &p_reply->body.CC2650_start_firmware_update;
+                        						printf("\t\t start result is %s\n", p_body->is_OK ? "OK" : "error");
+                        						printf("\t\t error code is %u\n", p_body->result_code);
+                        						printf("\t\t error message is %s\n", p_body->result_message);
+                								break;
+                							}
+                							case enum_ASAC_ZigBee_fwupd_CC2650_op_query_firmware_file:
+                							{
+                        						printf("\t CC2650 query firmware file\n");
+                								type_fwupd_CC2650_query_firmware_file_reply *p_body = &p_reply->body.CC2650_query_firmware_file_reply;
+                        						printf("\t\t result is %s, extended code %s\n", p_body->retcode == 0 ? "OK" : "error", p_body->query_result_string);
+                        						if (p_body->retcode == 0 )
+                        						{
+                            						printf("\t\t filename is %s\n", p_body->CC2650_fw_query_filename);
+                            						printf("\t\t version number is %u.%u.%u\n", p_body->fw_version_major, p_body->fw_version_middle, p_body->fw_version_minor);
+                            						printf("\t\t firmware type number is %u\n", p_body->fw_type);
+                            						printf("\t\t date string is %s\n", p_body->date);
+                            						printf("\t\t version number string is %s\n", p_body->ascii_version_number);
+                            						printf("\t\t firmware type string is %s\n", p_body->ascii_fw_type);
+                            						printf("\t\t firmware body size is %u bytes\n", p_body->firmware_body_size);
+                            						printf("\t\t firmware CRC is 0x%u\n", p_body->firmware_body_CRC32_CC2650);
+                            						printf("\t\t magic name is %s\n", p_body->magic_name);
+                            						printf("\t\t header CRC is 0x%u\n", p_body->header_CRC32_CC2650);
+                        						}
+                								break;
+                							}
+                							default:
+                							{
+                        						printf("\t unknown operation %u\n", p_reply->ops.CC2650);
+                								break;
+                							}
+                						}
+                						break;
+                					}
+                					default:
+                					{
+                						printf("unknown dst field\n");
+                						break;
+                					}
+                				}
+
                 				break;
                 			}
                 			case enum_ASAC_ZigBee_interface_command_outside_received_message:
