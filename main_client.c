@@ -178,7 +178,6 @@ static int getLine (char *prmpt, char *buff, size_t sz) {
 
 
 
-
 int main(int argc, char *argv[])
 {
 	uint64_t available_IEEE_addresses[128];
@@ -601,7 +600,7 @@ if (1)
 	printf("main loop starts\n");
     while(1)
     {
-#ifndef ANDROID
+#ifndef ANDROID_NO_CONSOLE
     	int c_from_kbd = getchar();
     	if (c_from_kbd == 'q' || c_from_kbd == 'Q')
     	{
@@ -612,7 +611,7 @@ if (1)
     	++idx_global_loop;
 #define def_send_outside_messages
 #ifdef def_send_outside_messages
-#ifndef ANDROID
+#ifndef ANDROID_NO_CONSOLE
     	// 'v' get server firmware version
     	if ((c_from_kbd == 'v') || (c_from_kbd == 'V'))
 #else
@@ -621,7 +620,7 @@ if (1)
 #endif
     	{
 
-#ifdef ANDROID
+#ifdef ANDROID_NO_CONSOLE
 		ui_fw_already_sent = 1;
 #endif
     		device_list_update_ack = device_list_update_req;
@@ -655,7 +654,7 @@ if (1)
     	}
 
 
-#ifndef ANDROID
+#ifndef ANDROID_NO_CONSOLE
     	// 'l' get devices list
     	if ((device_list_update_req != device_list_update_ack) || (c_from_kbd == 'l') || (c_from_kbd == 'L'))
 #else
@@ -663,7 +662,7 @@ if (1)
 #endif
     	{
 
-#ifdef ANDROID
+#ifdef ANDROID_NO_CONSOLE
     		ui_dl_already_sent =1;
 #endif
     		device_list_update_ack = device_list_update_req;
@@ -697,7 +696,7 @@ if (1)
 
     	}
 
-#ifndef ANDROID
+#ifndef ANDROID_NO_CONSOLE
     	// 'I' get my IEEE address
     	if ((c_from_kbd == 'I') || (c_from_kbd == 'i'))
 #else
@@ -705,7 +704,7 @@ if (1)
 #endif
     	{
 
-#ifdef ANDROID
+#ifdef ANDROID_NO_CONSOLE
     		ui_ie_already_sent = 1;
 #endif
     		type_ASAC_Zigbee_interface_request zmessage_tx;
@@ -737,7 +736,7 @@ if (1)
 
     	}
 
-#ifndef ANDROID
+#ifndef ANDROID_NO_CONSOLE
     	// 'U' get link quality
     	if ((c_from_kbd == 'U') || (c_from_kbd == 'u'))
     	{
@@ -770,7 +769,7 @@ if (1)
     	}
 #endif
 
-#ifndef ANDROID
+#ifndef ANDROID_NO_CONSOLE
     	// 'F' get CC2650 firmware version
     	if ((c_from_kbd == 'F') || (c_from_kbd == 'f'))
     	{
@@ -854,7 +853,7 @@ if (1)
 #endif
 
 
-#ifndef ANDROID
+#ifndef ANDROID_NO_CONSOLE
     	// @ sends user message
     	if (c_from_kbd == '@')
     	{
@@ -900,7 +899,7 @@ if (1)
         		type_ASAC_ZigBee_interface_command_outside_send_message_req * p_req = &zmessage_tx.req.outside_send_message;
         		int len = snprintf((char*)p_req->message,sizeof(p_req->message),"%s", buff);
         		type_ASAC_ZigBee_dst_id *pdst = &p_req->dst_id;
-    #ifdef ANDROID
+    #ifdef ANDROID_NO_CONSOLE
         		if (IEEE_dst_address)
         		{
         			pdst->IEEE_destination_address = IEEE_dst_address;
@@ -961,14 +960,14 @@ if (1)
 
 
 
-#ifdef ANDROID
+#ifdef ANDROID_NO_CONSOLE
 	usleep(1000);
 	if (idx_global_loop == 5000)
 #else
     	if ((c_from_kbd == 'm') || (c_from_kbd == 'M'))
 #endif
     	{
-#ifdef ANDROID
+#ifdef ANDROID_NO_CONSOLE
 	idx_global_loop = 0;
 #endif
     		static uint32_t idx_msg;
@@ -993,7 +992,7 @@ if (1)
     		type_ASAC_ZigBee_interface_command_outside_send_message_req * p_req = &zmessage_tx.req.outside_send_message;
     		int len = snprintf((char*)p_req->message,sizeof(p_req->message),"%s", text_to_send);
     		type_ASAC_ZigBee_dst_id *pdst = &p_req->dst_id;
-#ifdef ANDROID
+#ifdef ANDROID_NO_CONSOLE
     		if (IEEE_dst_address)
     		{
     			pdst->IEEE_destination_address = IEEE_dst_address;
@@ -1047,7 +1046,7 @@ if (1)
     	else
 #endif
 
-#ifdef ANDROID
+#ifdef ANDROID_NO_CONSOLE
 	if (idx_global_loop == 2500)
 #else
     	if ((c_from_kbd == 'e') || (c_from_kbd == 'E'))
@@ -1092,7 +1091,7 @@ if (1)
 #define def_loop_duration_time_ms 10
 #define def_loop_rx_num_of (1 + (def_loop_duration_time_ms*1000)/def_pause_base_time_us)
 
-#ifndef ANDROID
+#ifndef ANDROID_NO_CONSOLE
         	for (idx_loop_rx = 0; idx_loop_rx < def_loop_rx_num_of; idx_loop_rx++)
         	{
         		// 10 ms pause
@@ -1243,7 +1242,7 @@ if (1)
                 							{
                         						printf("\t CC2650 firmware version\n");
                 								type_fwupd_CC2650_read_version_reply_body *p_body = &p_reply->body.CC2650_read_firmware_version;
-                        						printf("\t\t number: %u.%u.%u (%s)\n", p_body->major, p_body->middle, p_body->minor, p_body->is_valid ? "valid": "*** NOT VALID ***");
+                        						printf("\t\t numberrpcSendFrame: %u.%u.%u (%s)\n", p_body->major, p_body->middle, p_body->minor, p_body->is_valid ? "valid": "*** NOT VALID ***");
                         						printf("\t\t product: %u, transport: %u\n", p_body->product, p_body->transport);
                 								break;
                 							}
@@ -1346,7 +1345,7 @@ if (1)
                 }
         	}
         }
-#ifndef ANDROID
+#ifndef ANDROID_NO_CONSOLE
     	usleep(100000);
 #endif
     }
