@@ -853,7 +853,7 @@ if (1)
 #endif
 
 
-#ifndef ANDROID_NO_CONSOLE
+#ifndef ANDROID
     	// @ sends user message
     	if (c_from_kbd == '@')
     	{
@@ -877,7 +877,7 @@ if (1)
     		{
     			address = 0;
     		}
-    		if (address >= numof_available_IEEE_addresses)
+    		if (address >= (int)numof_available_IEEE_addresses)
     		{
     			address = 0;
     		}
