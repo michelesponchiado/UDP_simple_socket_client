@@ -176,8 +176,6 @@ static int getLine (char *prmpt, char *buff, size_t sz) {
 }
 #endif
 
-
-
 int main(int argc, char *argv[])
 {
 	uint64_t available_IEEE_addresses[128];
@@ -1242,7 +1240,7 @@ if (1)
                 							{
                         						printf("\t CC2650 firmware version\n");
                 								type_fwupd_CC2650_read_version_reply_body *p_body = &p_reply->body.CC2650_read_firmware_version;
-                        						printf("\t\t numberrpcSendFrame: %u.%u.%u (%s)\n", p_body->major, p_body->middle, p_body->minor, p_body->is_valid ? "valid": "*** NOT VALID ***");
+                        						printf("\t\t number: %u.%u.%u (%s)\n", p_body->major, p_body->middle, p_body->minor, p_body->is_valid ? "valid": "*** NOT VALID ***");
                         						printf("\t\t product: %u, transport: %u\n", p_body->product, p_body->transport);
                 								break;
                 							}
