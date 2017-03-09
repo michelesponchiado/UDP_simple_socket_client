@@ -175,12 +175,28 @@ static int getLine (char *prmpt, char *buff, size_t sz) {
     return OK;
 }
 #endif
+#include <libgen.h>
+
+#define my_version "0.1.4"
 
 int main(int argc, char *argv[])
 {
+	char my_name[1024];
+	memset(my_name, 0, sizeof(my_name));
+	char *pc_basename = "UDP_ASACZ_client";
+
 	uint64_t available_IEEE_addresses[128];
 	uint32_t numof_available_IEEE_addresses = 0;
 	memset(&available_IEEE_addresses, 0, sizeof(available_IEEE_addresses));
+	{
+		snprintf(my_name, sizeof(my_name), "%s", argv[0]);
+		char *pc_basename = basename(my_name);
+		if (!pc_basename)
+		{
+			pc_basename = "UDP_ASACZ_client";
+		}
+		printf("%s version %s %s\n",pc_basename, my_version, __DATE__);
+	}
 
 	int already_print_socket = 0;
 	tcgetattr(0,&initial_settings);
