@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
 	memset(&available_IEEE_addresses, 0, sizeof(available_IEEE_addresses));
 	{
 		snprintf(my_name, sizeof(my_name), "%s", argv[0]);
-		char *pc_basename = basename(my_name);
+		pc_basename = basename(my_name);
 		if (!pc_basename)
 		{
 			pc_basename = "UDP_ASACZ_client";
@@ -866,6 +866,97 @@ if (1)
     	}
 #endif
 
+#ifndef ANDROID_NO_CONSOLE
+    	// 'G' diagnostic test
+    	if ((c_from_kbd == 'G') || (c_from_kbd == 'g'))
+    	{
+
+    		printf("DIAGNOSTIC TEST INTERFACE\n");
+    		printf("0 start, 1 status, 2 stop 9 exit\n");
+    		int option = 0;
+    		while(1)
+    		{
+        		c_from_kbd = getchar();
+        		if ((c_from_kbd == '0') || (c_from_kbd == '1') || (c_from_kbd == '2'))
+        		{
+            		option = c_from_kbd;
+            		break;
+        		}
+        		if (c_from_kbd == '9')
+        		{
+        			break;
+        		}
+
+    		}
+    		if (option > 0)
+    		{
+        		type_ASAC_Zigbee_interface_request zmessage_tx;
+        		type_ASAC_admin_diag_test_req * p_req = NULL;
+        		unsigned int zmessage_size = 0;
+        		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+        		init_header(&zmessage_tx.h, def_signal_strength_req_command_version, enum_ASAC_ZigBee_interface_command_administrator_diagnostic_test, get_new_link_id());
+        		zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx), diag_test_req);
+        		p_req = &zmessage_tx.req.diag_test_req;
+        		p_req->op.enum_op = enum_admin_diag_test_op_read_status;
+        		switch (c_from_kbd)
+        		{
+        			case '0':
+        			{
+        	    		p_req->op.enum_op = enum_admin_diag_test_op_start;
+        	    		type_admin_diag_test_req_start_body *pstart = &p_req->body.start;
+        	    		memset(pstart, 0, sizeof(*pstart));
+        	    		pstart->average_type.enum_type = enum_admin_diag_test_average_type_default;
+        	    		pstart->batch_acquire_period_ms = 1000;
+        	    		pstart->custom_message_length_type = 30;
+        	    		pstart->length_type.enum_type = enum_admin_diag_test_message_length_type_default;
+        	    		pstart->message_body_type.enum_type = enum_admin_diag_test_message_body_type_default;
+        	    		pstart->num_batch_samples_for_average = 50;
+        	    		pstart->server_IEEE_address = 0x8002;
+        				break;
+        			}
+        			case '1':
+        			{
+        	    		p_req->op.enum_op = enum_admin_diag_test_op_read_status;
+        	    		type_admin_diag_test_req_status_body *pstatus = &p_req->body.status;
+        	    		memset(pstatus, 0, sizeof(*pstatus));
+        	    		pstatus->format.enum_format = enum_admin_diag_test_status_req_format_default;
+        				break;
+        			}
+        			case '2':
+        			default:
+        			{
+        	    		p_req->op.enum_op = enum_admin_diag_test_op_stop;
+        	    		type_admin_diag_test_req_stop_body *pstop = &p_req->body.stop;
+        	    		memset(pstop, 0, sizeof(*pstop));
+        	    		pstop->unused = 0;
+        				break;
+        			}
+        		}
+        		{
+            		type_struct_ASACSOCKET_msg amessage_tx;
+            		memset(&amessage_tx,0,sizeof(amessage_tx));
+
+            		unsigned int amessage_tx_size = 0;
+            		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+            		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+            		{
+        				unsigned int slen=sizeof(serv_addr);
+        				//send the message
+        				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+        				{
+        					printf("%s: diag request error on sendto()", __func__);
+        				}
+        				else
+        				{
+        					printf("%s: diag request TX OK\n",__func__);
+        				}
+            		}
+        		}
+    		}
+    	}
+#endif
+
+
 
 #ifndef ANDROID
     	// @ sends user message
@@ -1238,6 +1329,54 @@ if (1)
                 				if (p_reply->is_valid_IEEE_address)
                 				{
                     				printf("\t my IEEE address is 0x%" PRIx64 "\n", p_reply->IEEE_address);
+                				}
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_administrator_diagnostic_test:
+                			{
+                				type_ASAC_admin_diag_test_reply * p_reply = &pzmessage_rx->reply.diag_test_reply;
+                				switch(p_reply->op.enum_op)
+                				{
+                					case enum_admin_diag_test_op_start:
+                					{
+                						type_admin_diag_test_reply_start_body * ps = &p_reply->body.start;
+                						printf("Start diagnostic test reply received: return code is %u (%s)\n", ps->retcode.uint32_retcode, ps->retcode_ascii);
+                						break;
+                					}
+                					case enum_admin_diag_test_op_read_status:
+                					{
+                						type_admin_diag_test_reply_status_body * ps = &p_reply->body.status;
+                						switch(ps->format.enum_format)
+                						{
+                							case enum_admin_diag_test_status_req_format_default:
+                							{
+                								type_admin_diag_test_status_standard_format_body *pf = &ps->body.standard_format_body;
+                								printf("#bytes rx OK: %"PRIu64", tx OK %"PRIu64"\n", pf->nbytes_rx_OK, pf->nbytes_tx_OK);
+                								printf("#messages rx OK: %"PRIu64", tx OK %"PRIu64"\n", pf->nmsg_rx_OK, pf->nmsg_tx_OK);
+                								printf("#messages rx ERR: %"PRIu64", tx ERR %"PRIu64"\n", pf->nmsg_rx_ERR, pf->nmsg_tx_ERR);
+                								printf("#bytes per seconds: rx %7.1f, tx %7.1f\n", pf->average_num_bytes_per_second_rx, pf->average_num_bytes_per_second_tx);
+                								printf("#messages per seconds: rx %7.1f, tx %7.1f\n", pf->average_num_msg_per_second_rx, pf->average_num_msg_per_second_tx);
+                								break;
+                							}
+                							default:
+                							{
+                        						printf("Unknown diagnostic test status format received: %u\n", ps->format.uint32_format);
+                        						break;
+                							}
+                						}
+                						break;
+                					}
+                					case enum_admin_diag_test_op_stop:
+                					{
+                						type_admin_diag_test_reply_stop_body * ps = &p_reply->body.stop;
+                						printf("Stop diagnostic test reply received: return code is %u (%s)\n", ps->retcode.uint32_retcode, ps->retcode_ascii);
+                						break;
+                					}
+                					default:
+                					{
+                						printf("Unknown diagnostic test operation received: %u\n", p_reply->op.uint32_op);
+                						break;
+                					}
                 				}
                 				break;
                 			}
