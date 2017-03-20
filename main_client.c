@@ -42,6 +42,32 @@
 #else
 	#define def_send_broadcast_packet
 #endif
+
+
+static uint32_t calcCrcLikeChip(const unsigned char *pData, unsigned long ulByteCount)
+{
+    uint32_t d, ind;
+    uint32_t acc = 0xFFFFFFFF;
+    const uint32_t ulCrcRand32Lut[] =
+    {
+        0x00000000, 0x1DB71064, 0x3B6E20C8, 0x26D930AC,
+        0x76DC4190, 0x6B6B51F4, 0x4DB26158, 0x5005713C,
+        0xEDB88320, 0xF00F9344, 0xD6D6A3E8, 0xCB61B38C,
+        0x9B64C2B0, 0x86D3D2D4, 0xA00AE278, 0xBDBDF21C
+    };
+
+    while ( ulByteCount-- )
+    {
+        d = *pData++;
+        ind = (acc & 0x0F) ^ (d & 0x0F);
+        acc = (acc >> 4) ^ ulCrcRand32Lut[ind];
+        ind = (acc & 0x0F) ^ (d >> 4);
+        acc = (acc >> 4) ^ ulCrcRand32Lut[ind];
+    }
+
+    return (acc ^ 0xFFFFFFFF);
+}
+
 static uint32_t get_new_link_id(void)
 {
 	static uint32_t cur_id = defFirstValidLinkId;
@@ -637,6 +663,8 @@ if (1)
 #ifdef ANDROID_NO_CONSOLE
 		ui_fw_already_sent = 1;
 #endif
+
+#if 0
     		device_list_update_ack = device_list_update_req;
     		type_ASAC_Zigbee_interface_request zmessage_tx;
     		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
@@ -664,7 +692,34 @@ if (1)
     				}
         		}
     		}
+#else
+    		type_ASAC_Zigbee_interface_request zmessage_tx;
+    		memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+    		init_header(&zmessage_tx.h, def_firmware_version_req_command_version, enum_ASAC_ZigBee_interface_command_network_probe, get_new_link_id());
+    		unsigned int zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx),network_probe_request);
+    		type_ASAC_ZigBee_interface_network_probe_request * p_req = &zmessage_tx.req.network_probe_request;
+    		p_req->op.enum_op = enum_network_probe_op_discovery;
+    		{
+        		type_struct_ASACSOCKET_msg amessage_tx;
+        		memset(&amessage_tx,0,sizeof(amessage_tx));
 
+        		unsigned int amessage_tx_size = 0;
+        		enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+        		if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+        		{
+    				unsigned int slen=sizeof(serv_addr);
+    				//send the message
+    				if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+    				{
+    					printf("%s: (discovery version) error on sendto()", __func__);
+    				}
+    				else
+    				{
+    					printf("%s: (discovery version) TX message OK\n",__func__);
+    				}
+        		}
+    		}
+#endif
     	}
 
 
@@ -867,6 +922,89 @@ if (1)
 #endif
 
 #ifndef ANDROID_NO_CONSOLE
+    	// 'N' set get sn
+    	if ((c_from_kbd == 'N') || (c_from_kbd == 'n'))
+    	{
+
+
+			printf("SERIAL NUMBER TEST INTERFACE\n");
+			printf("0 get, 1 set to 135789, 9 exit\n");
+			int option = 0;
+			while(1)
+			{
+				c_from_kbd = getchar();
+				if ((c_from_kbd == '0') || (c_from_kbd == '1') )
+				{
+					option = c_from_kbd;
+					break;
+				}
+				if (c_from_kbd == '9')
+				{
+					break;
+				}
+
+			}
+			if (option > 0)
+			{
+				type_ASAC_Zigbee_interface_request zmessage_tx;
+				type_ASAC_ZigBee_interface_administrator_device_info_req * p_req = NULL;
+				unsigned int zmessage_size = 0;
+				memset(&zmessage_tx, 0, sizeof(zmessage_tx));
+				init_header(&zmessage_tx.h, def_signal_strength_req_command_version, enum_ASAC_ZigBee_interface_command_administrator_device_info, get_new_link_id());
+				zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx), device_info_req);
+				p_req = &zmessage_tx.req.device_info_req;
+				p_req->op.enum_op = enum_administrator_device_info_op_get_serial_number;
+				switch (c_from_kbd)
+				{
+					case '0':
+					default:
+					{
+						p_req->op.enum_op = enum_administrator_device_info_op_get_serial_number;
+						type_administrator_device_info_op_get_serial_number *pget = &p_req->body.get_serial_number;
+						memset(pget, 0, sizeof(*pget));
+						pget->unused = 0;
+						break;
+					}
+					case '1':
+					{
+						p_req->op.enum_op = enum_administrator_device_info_op_set_serial_number;
+			    		uint32_t new_serial_number = 135789;
+			    		char data_crc[64];
+						int n_needed_chars = snprintf((char*)data_crc, sizeof(data_crc), "ASACZsn%u", new_serial_number);
+						uint32_t key_validate = calcCrcLikeChip((unsigned char*)data_crc, n_needed_chars);
+						type_administrator_device_info_op_set_serial_number *pset = &p_req->body.set_serial_number;
+						memset(pset, 0, sizeof(*pset));
+						pset->key_validate = key_validate;
+						pset->new_serial_number = new_serial_number;
+						break;
+					}
+				}
+				{
+					type_struct_ASACSOCKET_msg amessage_tx;
+					memset(&amessage_tx,0,sizeof(amessage_tx));
+
+					unsigned int amessage_tx_size = 0;
+					enum_build_ASACSOCKET_formatted_message r_build = build_ASACSOCKET_formatted_message(&amessage_tx, (char *)&zmessage_tx, zmessage_size, &amessage_tx_size);
+					if (r_build == enum_build_ASACSOCKET_formatted_message_OK)
+					{
+						unsigned int slen=sizeof(serv_addr);
+						//send the message
+						if (sendto(sockfd, (char*)&amessage_tx, amessage_tx_size , 0 , (struct sockaddr *) &serv_addr, slen)==-1)
+						{
+							printf("%s: sn request error on sendto()", __func__);
+						}
+						else
+						{
+							printf("%s: sn request TX OK\n",__func__);
+						}
+					}
+				}
+			}
+
+    	}
+#endif
+
+#ifndef ANDROID_NO_CONSOLE
     	// 'G' diagnostic test
     	if ((c_from_kbd == 'G') || (c_from_kbd == 'g'))
     	{
@@ -911,7 +1049,8 @@ if (1)
         	    		pstart->length_type.enum_type = enum_admin_diag_test_message_length_type_default;
         	    		pstart->message_body_type.enum_type = enum_admin_diag_test_message_body_type_default;
         	    		pstart->num_batch_samples_for_average = 50;
-        	    		pstart->server_IEEE_address = 0x8002;
+        	    		pstart->server_IEEE_address = 0x124B000D7D8002;
+        	    		printf("Starting radio diagnostic test with server 0x%"PRIx64"\n", pstart->server_IEEE_address);
         				break;
         			}
         			case '1':
@@ -1464,6 +1603,70 @@ if (1)
                 					}
                 				}
 
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_administrator_device_info:
+                			{
+                				type_ASAC_ZigBee_interface_administrator_device_info_reply * p_reply = &pzmessage_rx->reply.device_info_reply;
+                				switch(p_reply->op.enum_op)
+                				{
+                					case enum_administrator_device_info_op_get_serial_number:
+									{
+                						printf("Get serial number reply\n");
+                						type_administrator_device_info_op_get_serial_number_reply *pr = &p_reply->body.get_serial_number;
+                						printf("\t serial number = %u (%s)\n", pr->serial_number, pr->is_valid ? "valid": "*** NOT VALID ***");
+                						printf("\t return code = %u (%s)\n", pr->retcode.uint_retcode, pr->retcode_ascii);
+										break;
+									}
+                					case enum_administrator_device_info_op_set_serial_number:
+									{
+                						printf("Set serial number reply\n");
+                						type_administrator_device_info_op_set_serial_number_reply *pr = &p_reply->body.set_serial_number;
+                						printf("\t serial number = %u (%s)\n", pr->serial_number, pr->is_valid ? "valid": "*** NOT VALID ***");
+                						printf("\t return code = %u (%s)\n", pr->retcode.uint_retcode, pr->retcode_ascii);
+										break;
+									}
+                					default:
+                					{
+                						printf("Unknown device info operation: %u \n", p_reply->op.uint_op);
+                						break;
+                					}
+                				}
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_network_probe:
+                			{
+                				type_ASAC_ZigBee_interface_network_probe_reply * p_reply = &pzmessage_rx->reply.network_probe_reply;
+                				switch(p_reply->op.enum_op)
+                				{
+                					case enum_network_probe_op_discovery:
+                					{
+                						printf("Discovery probe op received\n");
+                						type_ASAC_ZigBee_interface_network_probe_reply_discovery *pd = &p_reply->body.discovery;
+                						printf("IEEE Address is:\n");
+                						printf("\t 0x%"PRIX64" (%s)\n",pd->IEEE_address_info.IEEE_address, pd->IEEE_address_info.is_valid_IEEE_address ? "valid":"NOT VALID");
+                						printf("ASACZ version is:\n");
+                						printf("\t %s\n", pd->ASACZ_version.string);
+                						printf("\t ver %u.%u.%u\n", pd->ASACZ_version.major_number, pd->ASACZ_version.middle_number, pd->ASACZ_version.minor_number);
+                						printf("\t build %u\n", pd->ASACZ_version.build_number);
+                						printf("\t date and time %s\n", pd->ASACZ_version.date_and_time);
+                						printf("\t notes %s\n", pd->ASACZ_version.notes);
+                						printf("\t patch %s\n", pd->ASACZ_version.patch);
+                						printf("CC2650 version is:\n");
+                						printf("\t number: %u.%u.%u (%s)\n", pd->CC2650_version.major, pd->CC2650_version.middle, pd->CC2650_version.minor, pd->CC2650_version.is_valid ? "valid": "*** NOT VALID ***");
+                						printf("\t product: %u, transport: %u\n", pd->CC2650_version.product, pd->CC2650_version.transport);
+                						printf("Serial number is:\n");
+                						printf("\t %u\n", pd->serial_number);
+                						printf("OpenWrt version is:\n");
+                						printf("\t %s\n", (char*)pd->OpenWrt_release);
+                						break;
+                					}
+                					default:
+                					{
+                						printf("Unknown probe op received: %u\n", p_reply->op.uint_op);
+                						break;
+                					}
+                				}
                 				break;
                 			}
                 			case enum_ASAC_ZigBee_interface_command_outside_received_message:

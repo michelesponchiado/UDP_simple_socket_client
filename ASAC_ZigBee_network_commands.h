@@ -80,12 +80,15 @@ typedef enum
 	enum_ASAC_ZigBee_interface_command_network_my_IEEE_req,
 // signal strength request
 	enum_ASAC_ZigBee_interface_command_network_signal_strength_req,
+// probe network-specific properties
+	enum_ASAC_ZigBee_interface_command_network_probe,
 
 // the commands used by the administrator
 	enum_ASAC_ZigBee_interface_command_administrator_first = 0x30000000,
 	enum_ASAC_ZigBee_interface_command_administrator_firmware_update = enum_ASAC_ZigBee_interface_command_administrator_first,
 	enum_ASAC_ZigBee_interface_command_administrator_restart_network_from_scratch,
 	enum_ASAC_ZigBee_interface_command_administrator_diagnostic_test,
+	enum_ASAC_ZigBee_interface_command_administrator_device_info,
 // the command used to reply to unknown commands
 	enum_ASAC_ZigBee_interface_command_unknown = 0xFFFFFFFF,
 
@@ -339,6 +342,7 @@ typedef struct _type_ASAC_ZigBee_interface_network_signal_strength_reply
 //
 //
 //
+
 
 
 //
@@ -797,6 +801,163 @@ typedef struct _type_ASAC_admin_diag_test_reply
 // enum_ASAC_ZigBee_interface_command_administrator_diagnostic_test ends here
 //
 
+
+
+//
+//
+// enum_ASAC_ZigBee_interface_command_network_probe begins here
+//
+//
+
+#define def_ASAC_ZigBee_network_probe_req_command_version 0
+
+typedef enum
+{
+	enum_network_probe_op_discovery = 0,
+	enum_network_probe_op_numof
+}enum_network_probe_op;
+
+typedef struct _type_ASAC_ZigBee_interface_network_probe_request
+{
+	union
+	{
+		enum_network_probe_op enum_op;
+		uint32_t uint_op;
+	}op;
+}__attribute__((__packed__)) type_ASAC_ZigBee_interface_network_probe_request;
+
+typedef struct _type_ASAC_ZigBee_interface_network_probe_reply_discovery
+{
+	uint32_t serial_number;
+	type_ASAC_ZigBee_interface_network_my_IEEE_reply IEEE_address_info;
+	type_ASAC_ZigBee_interface_network_firmware_version_reply ASACZ_version;
+	type_fwupd_CC2650_read_version_reply_body CC2650_version;
+	uint8_t OpenWrt_release[1024];
+}__attribute__((__packed__)) type_ASAC_ZigBee_interface_network_probe_reply_discovery;
+
+
+typedef struct _type_ASAC_ZigBee_interface_network_probe_reply
+{
+	union
+	{
+		enum_network_probe_op enum_op;
+		uint32_t uint_op;
+	}op;
+	union
+	{
+		type_ASAC_ZigBee_interface_network_probe_reply_discovery discovery;
+	}body;
+}__attribute__((__packed__)) type_ASAC_ZigBee_interface_network_probe_reply;
+
+
+//
+//
+// enum_ASAC_ZigBee_interface_command_network_probe ends here
+//
+//
+
+
+//
+//
+//
+// enum_ASAC_ZigBee_interface_command_administrator_device_info begins here
+//
+//
+//
+#define def_administrator_device_info_command_version 0
+
+typedef enum
+{
+	enum_administrator_device_info_op_get_serial_number,
+	enum_administrator_device_info_op_set_serial_number,
+	enum_administrator_device_info_op_numof
+}enum_administrator_device_info_op;
+
+typedef struct _type_administrator_device_info_op_get_serial_number
+{
+	uint32_t unused;
+}__attribute__((__packed__))  type_administrator_device_info_op_get_serial_number;
+
+typedef struct _type_administrator_device_info_op_set_serial_number
+{
+	uint32_t new_serial_number;
+	uint32_t key_validate;	// a key to validate the set operation; if the key is incorrect, the operation is not executed
+}__attribute__((__packed__))  type_administrator_device_info_op_set_serial_number;
+
+typedef struct _type_ASAC_ZigBee_interface_administrator_device_info_req
+{
+	union
+	{
+		enum_administrator_device_info_op enum_op;
+		uint32_t uint_op;
+	}op;
+	union
+	{
+		type_administrator_device_info_op_get_serial_number get_serial_number;
+		type_administrator_device_info_op_set_serial_number set_serial_number;
+	}body;
+} __attribute__((__packed__)) type_ASAC_ZigBee_interface_administrator_device_info_req;
+
+typedef enum
+{
+	enum_administrator_device_info_get_sn_retcode_OK = 0,
+	enum_administrator_device_info_get_sn_retcode_sn_not_set,
+	enum_administrator_device_info_get_sn_retcode_numof
+}enum_administrator_device_info_get_sn_retcode;
+typedef struct _type_administrator_device_info_op_get_serial_number_reply
+{
+	uint32_t is_valid;
+	uint32_t serial_number;
+	union
+	{
+		enum_administrator_device_info_get_sn_retcode enum_retcode;
+		uint32_t uint_retcode;
+	}retcode;
+	uint8_t retcode_ascii[128];
+}__attribute__((__packed__))  type_administrator_device_info_op_get_serial_number_reply;
+
+typedef enum
+{
+	enum_administrator_device_info_set_sn_retcode_OK = 0,
+	enum_administrator_device_info_set_sn_retcode_unable_to_write,
+	enum_administrator_device_info_set_sn_retcode_numof
+}enum_administrator_device_info_set_sn_retcode;
+typedef struct _type_administrator_device_info_op_set_serial_number_reply
+{
+	uint32_t is_valid;
+	uint32_t serial_number;
+	union
+	{
+		enum_administrator_device_info_set_sn_retcode enum_retcode;
+		uint32_t uint_retcode;
+	}retcode;
+	uint8_t retcode_ascii[128];
+}__attribute__((__packed__))  type_administrator_device_info_op_set_serial_number_reply;
+
+typedef struct _type_ASAC_ZigBee_interface_administrator_device_info_reply
+{
+	union
+	{
+		enum_administrator_device_info_op enum_op;
+		uint32_t uint_op;
+	}op;
+	union
+	{
+		type_administrator_device_info_op_get_serial_number_reply get_serial_number;
+		type_administrator_device_info_op_set_serial_number_reply set_serial_number;
+	}body;
+} __attribute__((__packed__)) type_ASAC_ZigBee_interface_administrator_device_info_reply;
+
+
+//
+//
+//
+// enum_ASAC_ZigBee_interface_command_administrator_device_info ends here
+//
+//
+//
+
+
 //
 //
 //
@@ -823,10 +984,12 @@ typedef struct _type_ASAC_Zigbee_interface_request
 		type_ASAC_ZigBee_interface_network_my_IEEE_req my_IEEE;
 		type_ASAC_ZigBee_interface_network_signal_strength_req signal_strength;
 		type_ASAC_ZigBee_interface_restart_network_from_scratch_req restart_network_from_scratch_req;
+		type_ASAC_ZigBee_interface_network_probe_request network_probe_request;
 
 		// administration
 		type_ASAC_ZigBee_interface_command_fwupd_req fwupd_req;
 		type_ASAC_admin_diag_test_req diag_test_req;
+		type_ASAC_ZigBee_interface_administrator_device_info_req device_info_req;
 
 	}req;
 }type_ASAC_Zigbee_interface_request;
@@ -853,10 +1016,12 @@ typedef struct _type_ASAC_Zigbee_interface_command_reply
 		type_ASAC_ZigBee_interface_network_my_IEEE_reply my_IEEE;
 		type_ASAC_ZigBee_interface_network_signal_strength_reply signal_strength;
 		type_ASAC_ZigBee_interface_restart_network_from_scratch_reply restart_network_from_scratch_reply;
+		type_ASAC_ZigBee_interface_network_probe_reply network_probe_reply;
 
 		// administration commands
 		type_ASAC_ZigBee_interface_command_fwupd_reply fwupd_reply;
 		type_ASAC_admin_diag_test_reply diag_test_reply;
+		type_ASAC_ZigBee_interface_administrator_device_info_reply device_info_reply;
 
 		// reply to an unknown command
 		type_ASAC_ZigBee_interface_unknown_reply unknown;
