@@ -207,6 +207,111 @@ static int getLine (char *prmpt, char *buff, size_t sz) {
 
 int main(int argc, char *argv[])
 {
+
+#if 0
+	{
+		{
+			type_ASAC_ZigBee_interface_command_fwupd_req req;
+
+			printf("type_ASAC_ZigBee_interface_command_fwupd_req: size = %lu\n", sizeof(req));
+			printf("\tdst:  offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,dst), sizeof(req.dst));
+			printf("\t  enum_dst:    offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,dst.enum_dst), sizeof(req.dst.enum_dst));
+			printf("\n");
+			printf("\t  uint32_dst:  offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,dst.uint32_dst), sizeof(req.dst.uint32_dst));
+			printf("\n");
+			printf("\top:   offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,ops), sizeof(req.ops));
+			printf("\t  CC2650:      offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,ops.CC2650), sizeof(req.ops.CC2650));
+			printf("\n");
+			printf("\t  uint32_op:   offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,ops.uint32_op), sizeof(req.ops.uint32_op));
+			printf("\n");
+			printf("\tbody: offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,body), sizeof(req.body));
+			printf("\t  CC2650_read_firmware_version:       offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,body.CC2650_read_firmware_version), sizeof(req.body.CC2650_read_firmware_version));
+			printf("\t    unused: offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,body.CC2650_read_firmware_version.unused), sizeof(req.body.CC2650_read_firmware_version.unused));
+			printf("\n");
+			printf("\t  CC2650_start_firmware_update:       offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,body.CC2650_start_firmware_update), sizeof(req.body.CC2650_start_firmware_update));
+			printf("\t    CC2650_fw_signed_filename: offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,body.CC2650_start_firmware_update.CC2650_fw_signed_filename), sizeof(req.body.CC2650_start_firmware_update.CC2650_fw_signed_filename));
+			printf("\n");
+			printf("\t  CC2650_query_firmware_update_status:offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,body.CC2650_query_firmware_update_status), sizeof(req.body.CC2650_query_firmware_update_status));
+			printf("\t    unused: offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,body.CC2650_query_firmware_update_status.unused), sizeof(req.body.CC2650_query_firmware_update_status.unused));
+			printf("\n");
+			printf("\t  CC2650_query_firmware_file_req:     offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,body.CC2650_query_firmware_file_req), sizeof(req.body.CC2650_query_firmware_file_req));
+			printf("\t    CC2650_fw_query_filename: offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_req,body.CC2650_query_firmware_file_req.CC2650_fw_query_filename), sizeof(req.body.CC2650_query_firmware_file_req.CC2650_fw_query_filename));
+			printf("\n");
+		}
+
+		{
+			type_ASAC_ZigBee_interface_command_fwupd_reply reply;
+
+			printf("type_ASAC_ZigBee_interface_command_fwupd_reply size = %lu\n", sizeof(reply));
+			printf("\tdst:  offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,dst), sizeof(reply.dst));
+			printf("\t  enum_dst:    offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,dst.enum_dst), sizeof(reply.dst.enum_dst));
+			printf("\n");
+			printf("\t  uint32_dst:  offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,dst.uint32_dst), sizeof(reply.dst.uint32_dst));
+			printf("\n");
+			printf("\top:   offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,ops), sizeof(reply.ops));
+			printf("\t  CC2650:     offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,ops.CC2650), sizeof(reply.ops.CC2650));
+			printf("\n");
+			printf("\t  uint32_op:  offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,ops.uint32_op), sizeof(reply.ops.uint32_op));
+			printf("\n");
+			printf("\tbody: offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,body), sizeof(reply.body));
+			printf("\t  CC2650_read_firmware_version: offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,body.CC2650_read_firmware_version), sizeof(reply.body.CC2650_read_firmware_version));
+#undef def_complete(field)
+#define def_complete(field) __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,body.CC2650_read_firmware_version.field), sizeof(reply.body.CC2650_read_firmware_version.field)
+			printf("\t    is_valid: offset %-4lu, size %-4lu\n", def_complete(is_valid));
+			printf("\t    major:    offset %-4lu, size %-4lu\n", def_complete(major));
+			printf("\t    middle:   offset %-4lu, size %-4lu\n", def_complete(middle));
+			printf("\t    minor:    offset %-4lu, size %-4lu\n", def_complete(minor));
+			printf("\t    product:  offset %-4lu, size %-4lu\n", def_complete(product));
+			printf("\t    transport:offset %-4lu, size %-4lu\n", def_complete(transport));
+			printf("\n");
+
+			printf("\t  CC2650_start_firmware_update: offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,body.CC2650_start_firmware_update), sizeof(reply.body.CC2650_start_firmware_update));
+#undef def_complete
+#define def_complete(field) __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,body.CC2650_start_firmware_update.field), sizeof(reply.body.CC2650_start_firmware_update.field)
+			printf("\t    is_OK:         offset %-4lu, size %-4lu\n", def_complete(is_OK));
+			printf("\t    num_request:   offset %-4lu, size %-4lu\n", def_complete(num_request));
+			printf("\t    result_code:   offset %-4lu, size %-4lu\n", def_complete(result_code));
+			printf("\t    result_message:offset %-4lu, size %-4lu\n", def_complete(result_message));
+			printf("\n");
+
+			printf("\t  CC2650_query_firmware_update_status: offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,body.CC2650_query_firmware_update_status), sizeof(reply.body.CC2650_query_firmware_update_status));
+#undef def_complete
+#define def_complete(field) __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,body.CC2650_query_firmware_update_status.field), sizeof(reply.body.CC2650_query_firmware_update_status.field)
+			printf("\t    status:                        offset %-4lu, size %-4lu\n",def_complete(status));
+			printf("\t    ends_OK:                       offset %-4lu, size %-4lu\n", def_complete(ends_OK));
+			printf("\t    ends_ERR:                      offset %-4lu, size %-4lu\n", def_complete(fw_update_result_code_is_valid));
+			printf("\t    fw_update_result_code_is_valid:offset %-4lu, size %-4lu\n", def_complete(fw_update_result_code));
+			printf("\t    fw_update_result_code:         offset %-4lu, size %-4lu\n", def_complete(status));
+			printf("\t    fw_update_result_string:       offset %-4lu, size %-4lu\n", def_complete(fw_update_result_string));
+			printf("\t    flash_write_percentage:        offset %-4lu, size %-4lu\n", def_complete(flash_write_percentage));
+			printf("\t    num_request:                   offset %-4lu, size %-4lu\n", def_complete(num_request));
+			printf("\t    num_ack:                       offset %-4lu, size %-4lu\n", def_complete(num_ack));
+			printf("\n");
+
+			printf("\t  CC2650_query_firmware_file_reply: offset %-4lu, size %-4lu\n", __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,body.CC2650_query_firmware_file_reply), sizeof(reply.body.CC2650_query_firmware_file_reply));
+#undef def_complete
+#define def_complete(field) __builtin_offsetof(type_ASAC_ZigBee_interface_command_fwupd_reply,body.CC2650_query_firmware_file_reply.field), sizeof(reply.body.CC2650_query_firmware_file_reply.field)
+			printf("\t    retcode:                   offset %-4lu, size %-4lu\n",def_complete(retcode));
+			printf("\t    query_result_string:       offset %-4lu, size %-4lu\n",def_complete(query_result_string));
+			printf("\t    CC2650_fw_query_filename:  offset %-4lu, size %-4lu\n",def_complete(CC2650_fw_query_filename));
+			printf("\t    magic_name:                offset %-4lu, size %-4lu\n",def_complete(magic_name));
+			printf("\t    ascii_fw_type:             offset %-4lu, size %-4lu\n",def_complete(ascii_fw_type));
+			printf("\t    ascii_version_number:      offset %-4lu, size %-4lu\n",def_complete(ascii_version_number));
+			printf("\t    date:                      offset %-4lu, size %-4lu\n",def_complete(date));
+			printf("\t    fw_type:                   offset %-4lu, size %-4lu\n",def_complete(fw_type));
+			printf("\t    fw_version_major:          offset %-4lu, size %-4lu\n",def_complete(fw_version_major));
+			printf("\t    fw_version_middle:         offset %-4lu, size %-4lu\n",def_complete(fw_version_middle));
+			printf("\t    fw_version_minor:          offset %-4lu, size %-4lu\n",def_complete(fw_version_minor));
+			printf("\t    firmware_body_size:        offset %-4lu, size %-4lu\n",def_complete(firmware_body_size));
+			printf("\t    firmware_body_CRC32_CC2650:offset %-4lu, size %-4lu\n",def_complete(firmware_body_CRC32_CC2650));
+			printf("\t    header_CRC32_CC2650:       offset %-4lu, size %-4lu\n",def_complete(header_CRC32_CC2650));
+			printf("\n");
+		}
+
+		return 0;
+	}
+#endif
+
 	char my_name[1024];
 	memset(my_name, 0, sizeof(my_name));
 	char *pc_basename = "UDP_ASACZ_client";
@@ -881,7 +986,7 @@ if (1)
         			case '1':
         			{
         	    		p_req->ops.CC2650= enum_ASAC_ZigBee_fwupd_CC2650_op_start_update;
-        	    		snprintf((char*)p_req->body.CC2650_start_firmware_update.CC2650_fw_signed_filename, sizeof(p_req->body.CC2650_start_firmware_update.CC2650_fw_signed_filename), "%s", "/usr/ASACZ_CC2650fw_COORDINATOR.2_6_5");
+        	    		snprintf((char*)p_req->body.CC2650_start_firmware_update.CC2650_fw_signed_filename, sizeof(p_req->body.CC2650_start_firmware_update.CC2650_fw_signed_filename), "%s", "ASACZ_CC2650fw_COORDINATOR.2_6_5");
         				break;
         			}
         			case '2':
@@ -893,7 +998,7 @@ if (1)
         			case '3':
         			{
         	    		p_req->ops.CC2650= enum_ASAC_ZigBee_fwupd_CC2650_op_query_firmware_file;
-        	    		snprintf ((char*)p_req->body.CC2650_query_firmware_file_req.CC2650_fw_query_filename, sizeof(p_req->body.CC2650_query_firmware_file_req.CC2650_fw_query_filename), "%s", "/usr/ASACZ_CC2650fw_COORDINATOR.2_6_5");
+        	    		snprintf ((char*)p_req->body.CC2650_query_firmware_file_req.CC2650_fw_query_filename, sizeof(p_req->body.CC2650_query_firmware_file_req.CC2650_fw_query_filename), "%s", "ASACZ_CC2650fw_COORDINATOR.2_6_5");
         				break;
         			}
         		}
@@ -1010,12 +1115,12 @@ if (1)
     	{
 
     		printf("DIAGNOSTIC TEST INTERFACE\n");
-    		printf("0 start, 1 status, 2 stop 9 exit\n");
+    		printf("0 start, 1 status, 2 stop 3 system reboot 4 get UTC time 9 exit\n");
     		int option = 0;
     		while(1)
     		{
         		c_from_kbd = getchar();
-        		if ((c_from_kbd == '0') || (c_from_kbd == '1') || (c_from_kbd == '2'))
+        		if ((c_from_kbd == '0') || (c_from_kbd == '1') || (c_from_kbd == '2')|| (c_from_kbd == '3')|| (c_from_kbd == '4'))
         		{
             		option = c_from_kbd;
             		break;
@@ -1068,6 +1173,25 @@ if (1)
         	    		type_admin_diag_test_req_stop_body *pstop = &p_req->body.stop;
         	    		memset(pstop, 0, sizeof(*pstop));
         	    		pstop->unused = 0;
+        				break;
+        			}
+        			case '3':
+        			{
+                		init_header(&zmessage_tx.h, def_signal_strength_req_command_version, enum_ASAC_ZigBee_interface_command_administrator_system_reboot, get_new_link_id());
+                		zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx), system_reboot_req);
+                		type_ASAC_ZigBee_interface_administrator_system_reboot_req * p_req_reboot = NULL;
+                		p_req_reboot = &zmessage_tx.req.system_reboot_req;
+                		p_req_reboot->reboot_req_id = 123456;
+                		snprintf((char*)p_req_reboot->reboot_req_message , sizeof(p_req_reboot->reboot_req_message), "%s", "test reboot");
+        				break;
+        			}
+        			case '4':
+        			{
+                		init_header(&zmessage_tx.h, def_signal_strength_req_command_version, enum_ASAC_ZigBee_interface_command_administrator_UTC, get_new_link_id());
+                		zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx), UTC_req);
+                		type_ASAC_ZigBee_interface_administrator_UTC_req * p_req_UTC = NULL;
+                		p_req_UTC = &zmessage_tx.req.UTC_req;
+                		p_req_UTC->op.enum_op = enum_UTC_op_get;
         				break;
         			}
         		}
@@ -1659,6 +1783,8 @@ if (1)
                 						printf("\t %u\n", pd->serial_number);
                 						printf("OpenWrt version is:\n");
                 						printf("\t %s\n", (char*)pd->OpenWrt_release);
+                						printf("Uptime is:\n");
+                						printf("\t %"PRIu64" seconds\n", pd->uptime_seconds);
                 						break;
                 					}
                 					default:
@@ -1667,6 +1793,23 @@ if (1)
                 						break;
                 					}
                 				}
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_administrator_system_reboot:
+                			{
+                				type_ASAC_ZigBee_interface_administrator_system_reboot_reply * p = &pzmessage_rx->reply.system_reboot_reply;
+                				printf("System reboot reply received: id = %u, msg = %s\n", p->reboot_req_id, p->reboot_req_message);
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_administrator_UTC:
+                			{
+                				type_ASAC_ZigBee_interface_administrator_UTC_reply * p = &pzmessage_rx->reply.UTC_reply;
+                				printf("UTC reply received:\n");
+                				printf("\top: %u\n", p->op.uint_op);
+                				printf("\treturn code: %u (%s)\n", p->return_code.uint_r, p->return_ascii);
+                				time_t t = p->current_system_epoch_time;
+                				struct tm * pmytm = gmtime(&t);
+                				printf("\tremote epoch time: 0x%"PRIx64", (%s)\n", p->current_system_epoch_time, asctime(pmytm));
                 				break;
                 			}
                 			case enum_ASAC_ZigBee_interface_command_outside_received_message:
