@@ -948,12 +948,12 @@ if (1)
     	if ((c_from_kbd == 'F') || (c_from_kbd == 'f'))
     	{
 
-    		printf("0 read fw version, 1 start fw update, 2 req fw update status 3 req firmware file info 9 exit\n");
+    		printf("0 read fw version, 1 start fw update, 2 req fw update status 3 req firmware file info 4 update ASACZ 5 status upd ASACZ 9 exit\n");
     		int option = 0;
     		while(1)
     		{
         		c_from_kbd = getchar();
-        		if ((c_from_kbd == '0') || (c_from_kbd == '1') || (c_from_kbd == '2') || (c_from_kbd == '3'))
+        		if ((c_from_kbd == '0') || (c_from_kbd == '1') || (c_from_kbd == '2') || (c_from_kbd == '3')|| (c_from_kbd == '4')|| (c_from_kbd == '5'))
         		{
             		option = c_from_kbd;
             		break;
@@ -999,6 +999,19 @@ if (1)
         			{
         	    		p_req->ops.CC2650= enum_ASAC_ZigBee_fwupd_CC2650_op_query_firmware_file;
         	    		snprintf ((char*)p_req->body.CC2650_query_firmware_file_req.CC2650_fw_query_filename, sizeof(p_req->body.CC2650_query_firmware_file_req.CC2650_fw_query_filename), "%s", "ASACZ_CC2650fw_COORDINATOR.2_6_5");
+        				break;
+        			}
+        			case '4':
+        			{
+        				p_req->dst.enum_dst = enum_ASAC_ZigBee_fwupd_destination_ASACZ;
+        	    		p_req->ops.ASACZ= enum_ASAC_fwupd_ASACZ_op_start_update;
+        	    		snprintf ((char*)p_req->body.ASACZ_do_update_req_body.ASACZ_fw_signed_filename, sizeof(p_req->body.ASACZ_do_update_req_body.ASACZ_fw_signed_filename), "%s", "OLINUXINO_ASACZ.0_1_3_build22");
+        				break;
+        			}
+        			case '5':
+        			{
+        				p_req->dst.enum_dst = enum_ASAC_ZigBee_fwupd_destination_ASACZ;
+        	    		p_req->ops.ASACZ= enum_ASAC_fwupd_ASACZ_op_status_update;
         				break;
         			}
         		}
@@ -1115,12 +1128,12 @@ if (1)
     	{
 
     		printf("DIAGNOSTIC TEST INTERFACE\n");
-    		printf("0 start, 1 status, 2 stop 3 system reboot 4 get UTC time 9 exit\n");
+    		printf("0 start, 1 status, 2 stop 3 system reboot 4 get UTC time 5 restart 9 exit\n");
     		int option = 0;
     		while(1)
     		{
         		c_from_kbd = getchar();
-        		if ((c_from_kbd == '0') || (c_from_kbd == '1') || (c_from_kbd == '2')|| (c_from_kbd == '3')|| (c_from_kbd == '4'))
+        		if ((c_from_kbd == '0') || (c_from_kbd == '1') || (c_from_kbd == '2')|| (c_from_kbd == '3')|| (c_from_kbd == '4')|| (c_from_kbd == '5'))
         		{
             		option = c_from_kbd;
             		break;
@@ -1192,6 +1205,17 @@ if (1)
                 		type_ASAC_ZigBee_interface_administrator_UTC_req * p_req_UTC = NULL;
                 		p_req_UTC = &zmessage_tx.req.UTC_req;
                 		p_req_UTC->op.enum_op = enum_UTC_op_get;
+        				break;
+        			}
+        			case '5':
+        			{
+
+                		init_header(&zmessage_tx.h, def_administrator_restart_me_command_version, enum_ASAC_ZigBee_interface_command_administrator_restart_me, get_new_link_id());
+                		zmessage_size = def_size_ASAC_Zigbee_interface_req((&zmessage_tx), restart_me_req);
+                		type_ASAC_ZigBee_interface_administrator_restart_me_req * p_req_restart_me = NULL;
+                		p_req_restart_me = &zmessage_tx.req.restart_me_req;
+                		p_req_restart_me->restart_req_id = 223344;
+                		snprintf((char*)p_req_restart_me->restart_req_message, sizeof(p_req_restart_me->restart_req_message), "%s", "ASAC restart test field");
         				break;
         			}
         		}
@@ -1649,6 +1673,33 @@ if (1)
                 				printf("firmware update reply:\n");
                 				switch(p_reply->dst.enum_dst)
                 				{
+                					case enum_ASAC_ZigBee_fwupd_destination_ASACZ:
+                					{
+                						printf("\t from ASACZ\n");
+                						switch(p_reply->ops.ASACZ)
+                						{
+                							case enum_ASAC_fwupd_ASACZ_op_start_update:
+                							{
+                								printf("op update\n");
+                								type_fwupd_ASACZ_do_update_reply_body *p_body = &p_reply->body.ASACZ_do_update_reply_body;
+                								printf("\t %s\n", p_body->started_OK ? "started OK": "ERROR");
+                								break;
+                							}
+                							case enum_ASAC_fwupd_ASACZ_op_status_update:
+                							{
+                								printf("status update\n");
+                								type_fwupd_ASACZ_status_update_reply_body *p_body = &p_reply->body.ASACZ_status_update_reply_body;
+                								printf("\t %s: return code %u (%s)\n", p_body->ends_OK ? "OK": "ERROR", p_body->result_code, p_body->result_message);
+                								break;
+                							}
+                							default:
+                							{
+                								printf("invalid op: %u\n", p_reply->ops.uint32_op);
+                								break;
+                							}
+                						}
+                						break;
+                					}
                 					case enum_ASAC_ZigBee_fwupd_destination_CC2650:
                 					{
                 						printf("\t from CC2650\n");
@@ -1799,6 +1850,12 @@ if (1)
                 			{
                 				type_ASAC_ZigBee_interface_administrator_system_reboot_reply * p = &pzmessage_rx->reply.system_reboot_reply;
                 				printf("System reboot reply received: id = %u, msg = %s\n", p->reboot_req_id, p->reboot_req_message);
+                				break;
+                			}
+                			case enum_ASAC_ZigBee_interface_command_administrator_restart_me:
+                			{
+                				type_ASAC_ZigBee_interface_administrator_restart_me_reply * p = &pzmessage_rx->reply.restart_me_reply;
+                				printf("ASACZ restart reply received: id = %u, msg = %s\n", p->restart_req_id, p->restart_req_message);
                 				break;
                 			}
                 			case enum_ASAC_ZigBee_interface_command_administrator_UTC:
