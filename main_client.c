@@ -1005,7 +1005,9 @@ if (1)
         			{
         				p_req->dst.enum_dst = enum_ASAC_ZigBee_fwupd_destination_ASACZ;
         	    		p_req->ops.ASACZ= enum_ASAC_fwupd_ASACZ_op_start_update;
-        	    		snprintf ((char*)p_req->body.ASACZ_do_update_req_body.ASACZ_fw_signed_filename, sizeof(p_req->body.ASACZ_do_update_req_body.ASACZ_fw_signed_filename), "%s", "OLINUXINO_ASACZ.0_1_3_build22");
+#define def_fw_ASACZ_package "OLINUXINO_ASACZ.0_1_3_build28"
+        	    		printf("Using the firmware file: %s\n", def_fw_ASACZ_package);
+        	    		snprintf ((char*)p_req->body.ASACZ_do_update_req_body.ASACZ_fw_signed_filename, sizeof(p_req->body.ASACZ_do_update_req_body.ASACZ_fw_signed_filename), "%s", def_fw_ASACZ_package);
         				break;
         			}
         			case '5':
@@ -1689,7 +1691,8 @@ if (1)
                 							{
                 								printf("status update\n");
                 								type_fwupd_ASACZ_status_update_reply_body *p_body = &p_reply->body.ASACZ_status_update_reply_body;
-                								printf("\t %s: return code %u (%s)\n", p_body->ends_OK ? "OK": "ERROR", p_body->result_code, p_body->result_message);
+                								printf("\t percentage %u %% (status %u)\n", p_body->progress_0_100, p_body->u_progress.uint);
+                								printf("\t %s: return code %u (%s)\n", p_body->ends_OK ? "OK": (p_body->ends_ERROR ? "ERROR" : "RUNNING"), p_body->result_code, p_body->result_message);
                 								break;
                 							}
                 							default:
